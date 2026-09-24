@@ -1,1522 +1,1522 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Drift Chase Web Edition</title>
-    <!-- Tailwind CSS for sleek UI overlay styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;800&display=swap');
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>Drift Chase Web Edition</title>
+        <!-- Tailwind CSS for sleek UI overlay styling -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;800&display=swap');
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0b0f19;
-            color: #f3f4f6;
-            overflow: hidden;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
+            body {
+                font-family: 'Inter', sans-serif;
+                background-color: #0b0f19;
+                color: #f3f4f6;
+                overflow: hidden;
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+            }
 
-        .font-orbitron {
-            font-family: 'Orbitron', sans-serif;
-        }
+            .font-orbitron {
+                font-family: 'Orbitron', sans-serif;
+            }
 
-        /* Glassmorphism UI styling */
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-        }
+            /* Glassmorphism UI styling */
+            .glass-panel {
+                background: rgba(15, 23, 42, 0.85);
+                backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            }
 
-        .neon-border-cyan {
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
-            border: 1px solid rgba(6, 182, 212, 0.6);
-        }
+            .neon-border-cyan {
+                box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+                border: 1px solid rgba(6, 182, 212, 0.6);
+            }
 
-        .neon-border-red {
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-            border: 1px solid rgba(239, 68, 68, 0.6);
-        }
+            .neon-border-red {
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+                border: 1px solid rgba(239, 68, 68, 0.6);
+            }
 
-        .neon-text-gold {
-            text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
-        }
+            .neon-text-gold {
+                text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+            }
 
-        /* Touch control button styling */
-        .touch-btn {
-            background: rgba(30, 41, 59, 0.7);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(4px);
-            transition: transform 0.05s ease, background 0.1s ease;
-        }
+            /* Touch control button styling */
+            .touch-btn {
+                background: rgba(30, 41, 59, 0.7);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(4px);
+                transition: transform 0.05s ease, background 0.1s ease;
+            }
 
-        .touch-btn:active, .touch-btn.active {
-            transform: scale(0.92);
-            background: rgba(6, 182, 212, 0.5);
-            border-color: rgba(6, 182, 212, 0.9);
-        }
+            .touch-btn:active, .touch-btn.active {
+                transform: scale(0.92);
+                background: rgba(6, 182, 212, 0.5);
+                border-color: rgba(6, 182, 212, 0.9);
+            }
 
-        /* Progress bars */
-        .bar-fill {
-            transition: width 0.15s ease-out;
-        }
+            /* Progress bars */
+            .bar-fill {
+                transition: width 0.15s ease-out;
+            }
 
-        /* Custom scrollbar for shop */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #06b6d4;
-            border-radius: 3px;
-        }
-    </style>
-</head>
-<body class="w-screen h-screen relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+            /* Custom scrollbar for shop */
+            ::-webkit-scrollbar {
+                width: 6px;
+            }
+            ::-webkit-scrollbar-track {
+                background: rgba(15, 23, 42, 0.6);
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #06b6d4;
+                border-radius: 3px;
+            }
+        </style>
+    </head>
+    <body class="w-screen h-screen relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
 
-    <!-- Main Game Canvas -->
-    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0 block cursor-crosshair"></canvas>
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0 block cursor-crosshair"></canvas>
 
-    <!-- Main Menu Screen -->
-    <div id="mainMenu" class="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-        <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-xl w-full text-center relative overflow-hidden neon-border-cyan">
-            <div class="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-red-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <!-- Main Menu Screen -->
+        <div id="mainMenu" class="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <div class="glass-panel p-8 md:p-12 rounded-3xl max-w-xl w-full text-center relative overflow-hidden neon-border-cyan">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-red-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-            <span class="inline-block px-3 py-1 bg-cyan-500/10 text-cyan-400 text-xs font-bold rounded-full border border-cyan-500/30 uppercase tracking-widest mb-3">Arcade Pursuit Simulator</span>
-            <h1 class="text-4xl md:text-6xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-200 to-indigo-400 tracking-wider mb-2">DRIFT CHASE</h1>
-            <p class="text-slate-400 text-sm md:text-base mb-8">Outrun the Cops, Master the Slide, Survive the Chaos.</p>
+                <span class="inline-block px-3 py-1 bg-cyan-500/10 text-cyan-400 text-xs font-bold rounded-full border border-cyan-500/30 uppercase tracking-widest mb-3">Arcade Pursuit Simulator</span>
+                <h1 class="text-4xl md:text-6xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-200 to-indigo-400 tracking-wider mb-2">DRIFT CHASE</h1>
+                <p class="text-slate-400 text-sm md:text-base mb-8">Outrun the Cops, Master the Slide, Survive the Chaos.</p>
 
-            <div class="grid grid-cols-2 gap-4 mb-8 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
-                <div class="text-center">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">High Score</p>
-                    <p id="menuHighScore" class="text-2xl font-black font-orbitron text-amber-400 neon-text-gold">0</p>
+                <div class="grid grid-cols-2 gap-4 mb-8 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <div class="text-center">
+                        <p class="text-xs text-slate-500 font-semibold uppercase">High Score</p>
+                        <p id="menuHighScore" class="text-2xl font-black font-orbitron text-amber-400 neon-text-gold">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Total Cash</p>
+                        <p id="menuTotalCoins" class="text-2xl font-black font-orbitron text-emerald-400">$0</p>
+                    </div>
                 </div>
-                <div class="text-center">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Total Cash</p>
-                    <p id="menuTotalCoins" class="text-2xl font-black font-orbitron text-emerald-400">$0</p>
-                </div>
-            </div>
 
-            <div class="flex flex-col gap-3">
-                <button id="btnStartGame" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black font-orbitron text-lg rounded-xl shadow-lg shadow-cyan-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0">
-                    PLAY NOW
-                </button>
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="btnOpenGarage" class="py-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold font-orbitron rounded-xl transition">
-                        GARAGE & SHOP
+                <div class="flex flex-col gap-3">
+                    <button id="btnStartGame" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black font-orbitron text-lg rounded-xl shadow-lg shadow-cyan-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0">
+                        PLAY NOW
                     </button>
-                    <button id="btnHowToPlay" class="py-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold font-orbitron rounded-xl transition">
-                        HOW TO PLAY
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HUD Overlay (Active Gameplay) -->
-    <div id="hudOverlay" class="absolute inset-0 z-10 pointer-events-none hidden flex flex-col justify-between p-4 md:p-6">
-        <!-- Top HUD Bar -->
-        <div class="flex justify-between items-start gap-4">
-            <!-- Health & Nitro Gauges -->
-            <div class="glass-panel p-3 md:p-4 rounded-2xl w-48 md:w-64 flex flex-col gap-2">
-                <div>
-                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                        <span class="text-red-400">ARMOR</span>
-                        <span id="hudHealthText" class="text-slate-300">100%</span>
-                    </div>
-                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                        <div id="hudHealthBar" class="bg-gradient-to-r from-red-600 to-emerald-400 h-full w-full bar-fill"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                        <span class="text-cyan-400">NITRO [SHIFT/E]</span>
-                        <span id="hudNitroText" class="text-slate-300">100%</span>
-                    </div>
-                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                        <div id="hudNitroBar" class="bg-gradient-to-r from-cyan-600 to-cyan-300 h-full w-full bar-fill"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btnOpenGarage" class="py-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold font-orbitron rounded-xl transition">
+                            GARAGE & SHOP
+                        </button>
+                        <button id="btnHowToPlay" class="py-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold font-orbitron rounded-xl transition">
+                            HOW TO PLAY
+                        </button>
                     </div>
                 </div>
             </div>
-
-            <!-- Score, Timer & Cash -->
-            <div class="glass-panel px-6 py-3 rounded-2xl text-center flex flex-col items-center">
-                <span class="text-xs font-bold text-slate-400 tracking-widest font-orbitron">SCORE</span>
-                <span id="hudScore" class="text-3xl md:text-5xl font-black font-orbitron text-white">0</span>
-                <div class="flex items-center gap-4 mt-1 text-xs md:text-sm font-bold font-orbitron">
-                    <span class="text-emerald-400" id="hudCoins">$0</span>
-                    <span class="text-slate-500">•</span>
-                    <span class="text-slate-300" id="hudTimer">00:00</span>
-                    <span class="text-slate-500">•</span>
-                    <span class="text-red-400" id="hudCopsWrecked">0 COPS</span>
-                </div>
-            </div>
-
-            <!-- Pause Button -->
-            <button id="btnPause" class="pointer-events-auto glass-panel p-3 rounded-2xl hover:bg-slate-800/80 text-slate-200 transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </button>
         </div>
 
-        <!-- Center Drift Combo Banner -->
-        <div id="driftComboContainer" class="self-center text-center opacity-0 transition-opacity duration-200 pointer-events-none transform -translate-y-6">
-            <p id="driftComboMultiplier" class="text-xl md:text-3xl font-black font-orbitron text-amber-400 italic italic tracking-wider italic">DRIFT x1.0</p>
-            <p id="driftComboScore" class="text-2xl md:text-4xl font-black font-orbitron text-white neon-text-gold">+0</p>
-        </div>
-
-        <!-- Bottom Speedometer & Controls Guide -->
-        <div class="flex justify-between items-end">
-            <div class="glass-panel p-4 rounded-2xl text-center">
-                <span id="hudSpeed" class="text-3xl font-black font-orbitron text-cyan-400">0</span>
-                <span class="text-xs text-slate-400 block font-bold font-orbitron">KM/H</span>
-            </div>
-            <div class="hidden md:flex gap-2 text-xs font-semibold text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
-                <span>[WASD / Arrows] Drive</span> • 
-                <span>[SPACE] Handbrake</span> • 
-                <span>[SHIFT / E] Nitro Boost</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- On-Screen Touch Controls (Visible on Touch Devices or Small Screens) -->
-    <div id="touchControls" class="absolute inset-x-0 bottom-4 z-20 pointer-events-none flex justify-between items-end px-4 md:hidden">
-        <!-- Left Side: Steering -->
-        <div class="flex gap-2 pointer-events-auto">
-            <button id="btnTouchLeft" class="touch-btn w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white">◄</button>
-            <button id="btnTouchRight" class="touch-btn w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white">►</button>
-        </div>
-        <!-- Right Side: Gas, Brake, Drift, Nitro -->
-        <div class="flex gap-2 pointer-events-auto items-end">
-            <div class="flex flex-col gap-2">
-                <button id="btnTouchNitro" class="touch-btn w-14 h-14 bg-cyan-600/50 border-cyan-400/50 rounded-2xl flex items-center justify-center font-black font-orbitron text-xs text-cyan-200">NITRO</button>
-                <button id="btnTouchDrift" class="touch-btn w-14 h-14 bg-amber-600/50 border-amber-400/50 rounded-2xl flex items-center justify-center font-black font-orbitron text-xs text-amber-200">DRIFT</button>
-            </div>
-            <div class="flex flex-col gap-2">
-                <button id="btnTouchGas" class="touch-btn w-16 h-16 bg-emerald-600/50 border-emerald-400/50 rounded-2xl flex items-center justify-center text-2xl text-emerald-200">▲</button>
-                <button id="btnTouchBrake" class="touch-btn w-16 h-12 bg-red-600/50 border-red-400/50 rounded-2xl flex items-center justify-center text-xl text-red-200">▼</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Garage & Shop Modal -->
-    <div id="garageModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col neon-border-cyan">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">GARAGE & SHOWROOM</h2>
-                    <p class="text-slate-400 text-xs md:text-sm">Select vehicle or upgrade existing specs.</p>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="bg-slate-900/90 border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-400 font-black font-orbitron text-lg" id="garageCashDisplay">$0</div>
-                    <button id="btnCloseGarage" class="text-slate-400 hover:text-white p-2 text-2xl font-bold">&times;</button>
-                </div>
-            </div>
-
-            <!-- Car Selection Grid & Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
-                <!-- Vehicle Showcase Cards -->
-                <div class="flex flex-col gap-4" id="carListContainer">
-                    <!-- Cars dynamically rendered by JS -->
-                </div>
-
-                <!-- Stats & Upgrades View -->
-                <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between border border-slate-800">
+        <!-- HUD Overlay (Active Gameplay) -->
+        <div id="hudOverlay" class="absolute inset-0 z-10 pointer-events-none hidden flex flex-col justify-between p-4 md:p-6">
+            <!-- Top HUD Bar -->
+            <div class="flex justify-between items-start gap-4">
+                <!-- Health & Nitro Gauges -->
+                <div class="glass-panel p-3 md:p-4 rounded-2xl w-48 md:w-64 flex flex-col gap-2">
                     <div>
-                        <h3 id="selectedCarName" class="text-xl font-black font-orbitron text-cyan-400 mb-1">Rookie Coupe</h3>
-                        <p id="selectedCarDesc" class="text-xs text-slate-400 mb-6">Balanced starter vehicle with reliable traction.</p>
-
-                        <!-- Stat Bars -->
-                        <div class="space-y-4 mb-6">
-                            <div>
-                                <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                                    <span class="text-slate-400">TOP SPEED</span>
-                                    <span id="statSpeedVal" class="text-cyan-400">120 KM/H</span>
-                                </div>
-                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div id="statSpeedBar" class="bg-cyan-400 h-full w-1/2"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                                    <span class="text-slate-400">DRIFT / HANDLING</span>
-                                    <span id="statDriftVal" class="text-amber-400">MEDIUM</span>
-                                </div>
-                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div id="statDriftBar" class="bg-amber-400 h-full w-1/2"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                                    <span class="text-slate-400">ARMOR / DURABILITY</span>
-                                    <span id="statArmorVal" class="text-red-400">100 HP</span>
-                                </div>
-                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div id="statArmorBar" class="bg-red-400 h-full w-1/2"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
-                                    <span class="text-slate-400">NITRO CAPACITY</span>
-                                    <span id="statNitroVal" class="text-indigo-400">3.0 SEC</span>
-                                </div>
-                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div id="statNitroBar" class="bg-indigo-400 h-full w-1/2"></div>
-                                </div>
-                            </div>
+                        <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                            <span class="text-red-400">ARMOR</span>
+                            <span id="hudHealthText" class="text-slate-300">100%</span>
                         </div>
-
-                        <!-- Upgrades Buttons -->
-                        <h4 class="text-xs font-bold font-orbitron text-slate-400 uppercase tracking-wider mb-3">Vehicle Upgrades (+10%)</h4>
-                        <div class="grid grid-cols-2 gap-2 mb-6">
-                            <button id="btnUpgradeEngine" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition">
-                                <div class="text-xs text-slate-400 font-semibold">Engine Tuning</div>
-                                <div class="text-sm font-bold font-orbitron text-emerald-400" id="costUpgradeEngine">$500</div>
-                            </button>
-                            <button id="btnUpgradeArmor" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition">
-                                <div class="text-xs text-slate-400 font-semibold">Reinforced Body</div>
-                                <div class="text-sm font-bold font-orbitron text-emerald-400" id="costUpgradeArmor">$500</div>
-                            </button>
+                        <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                            <div id="hudHealthBar" class="bg-gradient-to-r from-red-600 to-emerald-400 h-full w-full bar-fill"></div>
                         </div>
                     </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                            <span class="text-cyan-400">NITRO [SHIFT/E]</span>
+                            <span id="hudNitroText" class="text-slate-300">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                            <div id="hudNitroBar" class="bg-gradient-to-r from-cyan-600 to-cyan-300 h-full w-full bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
 
-                    <button id="btnSelectOrBuyCar" class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition shadow-lg shadow-cyan-500/20">
-                        SELECT VEHICLE
+                <!-- Score, Timer & Cash -->
+                <div class="glass-panel px-6 py-3 rounded-2xl text-center flex flex-col items-center">
+                    <span class="text-xs font-bold text-slate-400 tracking-widest font-orbitron">SCORE</span>
+                    <span id="hudScore" class="text-3xl md:text-5xl font-black font-orbitron text-white">0</span>
+                    <div class="flex items-center gap-4 mt-1 text-xs md:text-sm font-bold font-orbitron">
+                        <span class="text-emerald-400" id="hudCoins">$0</span>
+                        <span class="text-slate-500">•</span>
+                        <span class="text-slate-300" id="hudTimer">00:00</span>
+                        <span class="text-slate-500">•</span>
+                        <span class="text-red-400" id="hudCopsWrecked">0 COPS</span>
+                    </div>
+                </div>
+
+                <!-- Pause Button -->
+                <button id="btnPause" class="pointer-events-auto glass-panel p-3 rounded-2xl hover:bg-slate-800/80 text-slate-200 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+            </div>
+
+            <!-- Center Drift Combo Banner -->
+            <div id="driftComboContainer" class="self-center text-center opacity-0 transition-opacity duration-200 pointer-events-none transform -translate-y-6">
+                <p id="driftComboMultiplier" class="text-xl md:text-3xl font-black font-orbitron text-amber-400 italic italic tracking-wider italic">DRIFT x1.0</p>
+                <p id="driftComboScore" class="text-2xl md:text-4xl font-black font-orbitron text-white neon-text-gold">+0</p>
+            </div>
+
+            <!-- Bottom Speedometer & Controls Guide -->
+            <div class="flex justify-between items-end">
+                <div class="glass-panel p-4 rounded-2xl text-center">
+                    <span id="hudSpeed" class="text-3xl font-black font-orbitron text-cyan-400">0</span>
+                    <span class="text-xs text-slate-400 block font-bold font-orbitron">KM/H</span>
+                </div>
+                <div class="hidden md:flex gap-2 text-xs font-semibold text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span>[WASD / Arrows] Drive</span> • 
+                    <span>[SPACE] Handbrake</span> • 
+                    <span>[SHIFT / E] Nitro Boost</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Screen Touch Controls (Visible on Touch Devices or Small Screens) -->
+        <div id="touchControls" class="absolute inset-x-0 bottom-4 z-20 pointer-events-none flex justify-between items-end px-4 md:hidden">
+            <!-- Left Side: Steering -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="btnTouchLeft" class="touch-btn w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white">◄</button>
+                <button id="btnTouchRight" class="touch-btn w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white">►</button>
+            </div>
+            <!-- Right Side: Gas, Brake, Drift, Nitro -->
+            <div class="flex gap-2 pointer-events-auto items-end">
+                <div class="flex flex-col gap-2">
+                    <button id="btnTouchNitro" class="touch-btn w-14 h-14 bg-cyan-600/50 border-cyan-400/50 rounded-2xl flex items-center justify-center font-black font-orbitron text-xs text-cyan-200">NITRO</button>
+                    <button id="btnTouchDrift" class="touch-btn w-14 h-14 bg-amber-600/50 border-amber-400/50 rounded-2xl flex items-center justify-center font-black font-orbitron text-xs text-amber-200">DRIFT</button>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button id="btnTouchGas" class="touch-btn w-16 h-16 bg-emerald-600/50 border-emerald-400/50 rounded-2xl flex items-center justify-center text-2xl text-emerald-200">▲</button>
+                    <button id="btnTouchBrake" class="touch-btn w-16 h-12 bg-red-600/50 border-red-400/50 rounded-2xl flex items-center justify-center text-xl text-red-200">▼</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Garage & Shop Modal -->
+        <div id="garageModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col neon-border-cyan">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">GARAGE & SHOWROOM</h2>
+                        <p class="text-slate-400 text-xs md:text-sm">Select vehicle or upgrade existing specs.</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="bg-slate-900/90 border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-400 font-black font-orbitron text-lg" id="garageCashDisplay">$0</div>
+                        <button id="btnCloseGarage" class="text-slate-400 hover:text-white p-2 text-2xl font-bold">&times;</button>
+                    </div>
+                </div>
+
+                <!-- Car Selection Grid & Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
+                    <!-- Vehicle Showcase Cards -->
+                    <div class="flex flex-col gap-4" id="carListContainer">
+                        <!-- Cars dynamically rendered by JS -->
+                    </div>
+
+                    <!-- Stats & Upgrades View -->
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between border border-slate-800">
+                        <div>
+                            <h3 id="selectedCarName" class="text-xl font-black font-orbitron text-cyan-400 mb-1">Rookie Coupe</h3>
+                            <p id="selectedCarDesc" class="text-xs text-slate-400 mb-6">Balanced starter vehicle with reliable traction.</p>
+
+                            <!-- Stat Bars -->
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                                        <span class="text-slate-400">TOP SPEED</span>
+                                        <span id="statSpeedVal" class="text-cyan-400">120 KM/H</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                        <div id="statSpeedBar" class="bg-cyan-400 h-full w-1/2"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                                        <span class="text-slate-400">DRIFT / HANDLING</span>
+                                        <span id="statDriftVal" class="text-amber-400">MEDIUM</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                        <div id="statDriftBar" class="bg-amber-400 h-full w-1/2"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                                        <span class="text-slate-400">ARMOR / DURABILITY</span>
+                                        <span id="statArmorVal" class="text-red-400">100 HP</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                        <div id="statArmorBar" class="bg-red-400 h-full w-1/2"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                                        <span class="text-slate-400">NITRO CAPACITY</span>
+                                        <span id="statNitroVal" class="text-indigo-400">3.0 SEC</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                        <div id="statNitroBar" class="bg-indigo-400 h-full w-1/2"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Upgrades Buttons -->
+                            <h4 class="text-xs font-bold font-orbitron text-slate-400 uppercase tracking-wider mb-3">Vehicle Upgrades (+10%)</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-6">
+                                <button id="btnUpgradeEngine" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition">
+                                    <div class="text-xs text-slate-400 font-semibold">Engine Tuning</div>
+                                    <div class="text-sm font-bold font-orbitron text-emerald-400" id="costUpgradeEngine">$500</div>
+                                </button>
+                                <button id="btnUpgradeArmor" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 text-left transition">
+                                    <div class="text-xs text-slate-400 font-semibold">Reinforced Body</div>
+                                    <div class="text-sm font-bold font-orbitron text-emerald-400" id="costUpgradeArmor">$500</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button id="btnSelectOrBuyCar" class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition shadow-lg shadow-cyan-500/20">
+                            SELECT VEHICLE
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How to Play Modal -->
+        <div id="howToPlayModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-lg w-full flex flex-col neon-border-cyan">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-black font-orbitron text-white">HOW TO PLAY</h2>
+                    <button id="btnCloseHowToPlay" class="text-slate-400 hover:text-white p-2 text-2xl font-bold">&times;</button>
+                </div>
+                <div class="space-y-4 text-sm text-slate-300">
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <p class="font-bold font-orbitron text-cyan-400 mb-1">🎮 CONTROLS</p>
+                        <p>• <b>WASD or Arrow Keys:</b> Steer, Accelerate, Brake/Reverse</p>
+                        <p>• <b>SPACEBAR:</b> Handbrake Drift (Hold while turning to lose rear traction)</p>
+                        <p>• <b>SHIFT / E:</b> Nitro Boost (Extreme acceleration & ramming power)</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <p class="font-bold font-orbitron text-amber-400 mb-1">🔥 DRIFTING & COMBOS</p>
+                        <p>Slide sideways at speed to initiate a drift. Hold longer drifts to build up score multipliers!</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <p class="font-bold font-orbitron text-red-400 mb-1">🚓 POLICE PURSUIT</p>
+                        <p>Cop cruisers spawn constantly. Trick them into crashing into walls, crates, or each other, or ram them with Nitro to wreck them for bonus cash!</p>
+                    </div>
+                </div>
+                <button id="btnGotIt" class="mt-6 w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron rounded-xl">GOT IT</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div class="glass-panel p-8 rounded-3xl max-w-md w-full text-center neon-border-red">
+                <h2 class="text-4xl font-black font-orbitron text-red-500 mb-1 tracking-wider">BUSTED!</h2>
+                <p class="text-slate-400 text-sm mb-6">Your vehicle was immobilized by law enforcement.</p>
+
+                <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3 mb-6 text-left">
+                    <div class="flex justify-between items-center text-sm font-orbitron">
+                        <span class="text-slate-400">FINAL SCORE</span>
+                        <span id="goScore" class="text-xl font-black text-white">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm font-orbitron">
+                        <span class="text-slate-400">SURVIVAL TIME</span>
+                        <span id="goTime" class="text-base font-bold text-slate-200">00:00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm font-orbitron">
+                        <span class="text-slate-400">COPS WRECKED</span>
+                        <span id="goCops" class="text-base font-bold text-red-400">0</span>
+                    </div>
+                    <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-sm font-orbitron">
+                        <span class="text-emerald-400 font-bold">CASH EARNED</span>
+                        <span id="goCash" class="text-xl font-black text-emerald-400">+$0</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button id="btnRetry" class="w-full py-4 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black font-orbitron text-lg rounded-xl shadow-lg shadow-red-600/30 transition">
+                        TRY AGAIN
+                    </button>
+                    <button id="btnGoMenu" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold font-orbitron rounded-xl border border-slate-700">
+                        MAIN MENU
                     </button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- How to Play Modal -->
-    <div id="howToPlayModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-lg w-full flex flex-col neon-border-cyan">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black font-orbitron text-white">HOW TO PLAY</h2>
-                <button id="btnCloseHowToPlay" class="text-slate-400 hover:text-white p-2 text-2xl font-bold">&times;</button>
-            </div>
-            <div class="space-y-4 text-sm text-slate-300">
-                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                    <p class="font-bold font-orbitron text-cyan-400 mb-1">🎮 CONTROLS</p>
-                    <p>• <b>WASD or Arrow Keys:</b> Steer, Accelerate, Brake/Reverse</p>
-                    <p>• <b>SPACEBAR:</b> Handbrake Drift (Hold while turning to lose rear traction)</p>
-                    <p>• <b>SHIFT / E:</b> Nitro Boost (Extreme acceleration & ramming power)</p>
-                </div>
-                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                    <p class="font-bold font-orbitron text-amber-400 mb-1">🔥 DRIFTING & COMBOS</p>
-                    <p>Slide sideways at speed to initiate a drift. Hold longer drifts to build up score multipliers!</p>
-                </div>
-                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                    <p class="font-bold font-orbitron text-red-400 mb-1">🚓 POLICE PURSUIT</p>
-                    <p>Cop cruisers spawn constantly. Trick them into crashing into walls, crates, or each other, or ram them with Nitro to wreck them for bonus cash!</p>
-                </div>
-            </div>
-            <button id="btnGotIt" class="mt-6 w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron rounded-xl">GOT IT</button>
-        </div>
-    </div>
+        <!-- MAIN JAVASCRIPT GAME ENGINE -->
+        <script>
+            const CANVAS = document.getElementById('gameCanvas');
+            const CTX = CANVAS.getContext('2d');
 
-    <!-- Game Over Screen -->
-    <div id="gameOverModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        <div class="glass-panel p-8 rounded-3xl max-w-md w-full text-center neon-border-red">
-            <h2 class="text-4xl font-black font-orbitron text-red-500 mb-1 tracking-wider">BUSTED!</h2>
-            <p class="text-slate-400 text-sm mb-6">Your vehicle was immobilized by law enforcement.</p>
+            // Map Boundaries
+            const MAP_SIZE = 3600; // 3600x3600 world boundary
 
-            <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3 mb-6 text-left">
-                <div class="flex justify-between items-center text-sm font-orbitron">
-                    <span class="text-slate-400">FINAL SCORE</span>
-                    <span id="goScore" class="text-xl font-black text-white">0</span>
-                </div>
-                <div class="flex justify-between items-center text-sm font-orbitron">
-                    <span class="text-slate-400">SURVIVAL TIME</span>
-                    <span id="goTime" class="text-base font-bold text-slate-200">00:00</span>
-                </div>
-                <div class="flex justify-between items-center text-sm font-orbitron">
-                    <span class="text-slate-400">COPS WRECKED</span>
-                    <span id="goCops" class="text-base font-bold text-red-400">0</span>
-                </div>
-                <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-sm font-orbitron">
-                    <span class="text-emerald-400 font-bold">CASH EARNED</span>
-                    <span id="goCash" class="text-xl font-black text-emerald-400">+$0</span>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-3">
-                <button id="btnRetry" class="w-full py-4 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black font-orbitron text-lg rounded-xl shadow-lg shadow-red-600/30 transition">
-                    TRY AGAIN
-                </button>
-                <button id="btnGoMenu" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold font-orbitron rounded-xl border border-slate-700">
-                    MAIN MENU
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN JAVASCRIPT GAME ENGINE -->
-    <script>
-        const CANVAS = document.getElementById('gameCanvas');
-        const CTX = CANVAS.getContext('2d');
-
-        // Map Boundaries
-        const MAP_SIZE = 3600; // 3600x3600 world boundary
-
-        // Audio Context Synthesizer Engine
-        class AudioEngine {
-            constructor() {
-                this.ctx = null;
-                this.isMuted = false;
-                this.engineOsc = null;
-                this.engineGain = null;
-            }
-
-            init() {
-                if (this.ctx) return;
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                this.ctx = new AudioCtx();
-
-                // Continuous Engine Hum Oscillator
-                try {
-                    this.engineOsc = this.ctx.createOscillator();
-                    this.engineGain = this.ctx.createGain();
-                    this.engineOsc.type = 'sawtooth';
-                    this.engineOsc.frequency.setValueAtTime(40, this.ctx.currentTime);
-                    this.engineGain.gain.setValueAtTime(0.02, this.ctx.currentTime);
-                    this.engineOsc.connect(this.engineGain);
-                    this.engineGain.connect(this.ctx.destination);
-                    this.engineOsc.start();
-                } catch(e) {}
-            }
-
-            updateEnginePitch(speedRatio) {
-                if (!this.ctx || !this.engineOsc) return;
-                const freq = 30 + speedRatio * 160;
-                this.engineOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.05);
-            }
-
-            playSkidSound() {
-                if (!this.ctx) return;
-                const bufferSize = this.ctx.sampleRate * 0.1;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
+            // Audio Context Synthesizer Engine
+            class AudioEngine {
+                constructor() {
+                    this.ctx = null;
+                    this.isMuted = false;
+                    this.engineOsc = null;
+                    this.engineGain = null;
                 }
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.value = 1200;
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-                noise.start();
+
+                init() {
+                    if (this.ctx) return;
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    this.ctx = new AudioCtx();
+
+                    // Continuous Engine Hum Oscillator
+                    try {
+                        this.engineOsc = this.ctx.createOscillator();
+                        this.engineGain = this.ctx.createGain();
+                        this.engineOsc.type = 'sawtooth';
+                        this.engineOsc.frequency.setValueAtTime(40, this.ctx.currentTime);
+                        this.engineGain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+                        this.engineOsc.connect(this.engineGain);
+                        this.engineGain.connect(this.ctx.destination);
+                        this.engineOsc.start();
+                    } catch(e) {}
+                }
+
+                updateEnginePitch(speedRatio) {
+                    if (!this.ctx || !this.engineOsc) return;
+                    const freq = 30 + speedRatio * 160;
+                    this.engineOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.05);
+                }
+
+                playSkidSound() {
+                    if (!this.ctx) return;
+                    const bufferSize = this.ctx.sampleRate * 0.1;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 1200;
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start();
+                }
+
+                playExplosion() {
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.4);
+                }
+
+                playCoin() {
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(987.77, this.ctx.currentTime); // B5
+                    osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08); // E6
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.2);
+                }
             }
 
-            playExplosion() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.4);
+            const audio = new AudioEngine();
+
+            // Save System Data Structure
+            const DEFAULT_SAVE = {
+                coins: 250,
+                highScore: 0,
+                selectedCar: 0,
+                unlockedCars: [true, false, false, false],
+                upgrades: { engine: 0, armor: 0 }
+            };
+
+            let saveData = JSON.parse(localStorage.getItem('drift_chase_save')) || DEFAULT_SAVE;
+
+            function saveGame() {
+                localStorage.setItem('drift_chase_save', JSON.stringify(saveData));
             }
 
-            playCoin() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(987.77, this.ctx.currentTime); // B5
-                osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08); // E6
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.2);
-            }
-        }
+            // Available Cars Specifications
+            const CAR_CATALOG = [
+                {
+                    id: 0,
+                    name: 'Rookie Coupe',
+                    desc: 'Nimble tuner car with balanced drift mechanics.',
+                    price: 0,
+                    color: '#06b6d4',
+                    accent: '#ffffff',
+                    topSpeed: 10.5,
+                    accel: 0.22,
+                    handling: 0.055,
+                    driftGrip: 0.94,
+                    maxHealth: 100,
+                    nitroMax: 3.0
+                },
+                {
+                    id: 1,
+                    name: 'Drift Spec RX',
+                    desc: 'Tail-happy drift monster with high combo potential.',
+                    price: 800,
+                    color: '#f59e0b',
+                    accent: '#1e293b',
+                    topSpeed: 12.0,
+                    accel: 0.25,
+                    handling: 0.065,
+                    driftGrip: 0.88,
+                    maxHealth: 90,
+                    nitroMax: 3.5
+                },
+                {
+                    id: 2,
+                    name: 'Enforcer V8',
+                    desc: 'Heavyweight muscle car that crushes police pursuit.',
+                    price: 1500,
+                    color: '#ef4444',
+                    accent: '#fbcfe8',
+                    topSpeed: 11.5,
+                    accel: 0.28,
+                    handling: 0.048,
+                    driftGrip: 0.95,
+                    maxHealth: 180,
+                    nitroMax: 4.0
+                },
+                {
+                    id: 3,
+                    name: 'Apex Hypercar',
+                    desc: 'Extreme supercar with ultra top speed and nitro output.',
+                    price: 3000,
+                    color: '#10b981',
+                    accent: '#38bdf8',
+                    topSpeed: 14.5,
+                    accel: 0.35,
+                    handling: 0.060,
+                    driftGrip: 0.92,
+                    maxHealth: 120,
+                    nitroMax: 5.0
+                }
+            ];
 
-        const audio = new AudioEngine();
+            class ParticleSystem {
+                constructor() {
+                    this.particles = [];
+                }
 
-        // Save System Data Structure
-        const DEFAULT_SAVE = {
-            coins: 250,
-            highScore: 0,
-            selectedCar: 0,
-            unlockedCars: [true, false, false, false],
-            upgrades: { engine: 0, armor: 0 }
-        };
-
-        let saveData = JSON.parse(localStorage.getItem('drift_chase_save')) || DEFAULT_SAVE;
-
-        function saveGame() {
-            localStorage.setItem('drift_chase_save', JSON.stringify(saveData));
-        }
-
-        // Available Cars Specifications
-        const CAR_CATALOG = [
-            {
-                id: 0,
-                name: 'Rookie Coupe',
-                desc: 'Nimble tuner car with balanced drift mechanics.',
-                price: 0,
-                color: '#06b6d4',
-                accent: '#ffffff',
-                topSpeed: 10.5,
-                accel: 0.22,
-                handling: 0.055,
-                driftGrip: 0.94,
-                maxHealth: 100,
-                nitroMax: 3.0
-            },
-            {
-                id: 1,
-                name: 'Drift Spec RX',
-                desc: 'Tail-happy drift monster with high combo potential.',
-                price: 800,
-                color: '#f59e0b',
-                accent: '#1e293b',
-                topSpeed: 12.0,
-                accel: 0.25,
-                handling: 0.065,
-                driftGrip: 0.88,
-                maxHealth: 90,
-                nitroMax: 3.5
-            },
-            {
-                id: 2,
-                name: 'Enforcer V8',
-                desc: 'Heavyweight muscle car that crushes police pursuit.',
-                price: 1500,
-                color: '#ef4444',
-                accent: '#fbcfe8',
-                topSpeed: 11.5,
-                accel: 0.28,
-                handling: 0.048,
-                driftGrip: 0.95,
-                maxHealth: 180,
-                nitroMax: 4.0
-            },
-            {
-                id: 3,
-                name: 'Apex Hypercar',
-                desc: 'Extreme supercar with ultra top speed and nitro output.',
-                price: 3000,
-                color: '#10b981',
-                accent: '#38bdf8',
-                topSpeed: 14.5,
-                accel: 0.35,
-                handling: 0.060,
-                driftGrip: 0.92,
-                maxHealth: 120,
-                nitroMax: 5.0
-            }
-        ];
-
-        class ParticleSystem {
-            constructor() {
-                this.particles = [];
-            }
-
-            spawnSmoke(x, y, vx, vy, color = 'rgba(200, 200, 200, 0.4)', maxRadius = 12) {
-                this.particles.push({
-                    x, y,
-                    vx: vx + (Math.random() - 0.5) * 1.5,
-                    vy: vy + (Math.random() - 0.5) * 1.5,
-                    radius: 3 + Math.random() * 4,
-                    maxRadius,
-                    alpha: 0.5,
-                    color,
-                    life: 1.0,
-                    decay: 0.02 + Math.random() * 0.02
-                });
-            }
-
-            spawnSpark(x, y) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 2 + Math.random() * 6;
-                this.particles.push({
-                    x, y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    radius: 1 + Math.random() * 2,
-                    color: '#fbbf24',
-                    alpha: 1.0,
-                    life: 1.0,
-                    decay: 0.05 + Math.random() * 0.05
-                });
-            }
-
-            spawnExplosion(x, y) {
-                for (let i = 0; i < 35; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 1 + Math.random() * 8;
-                    const isFire = Math.random() > 0.3;
+                spawnSmoke(x, y, vx, vy, color = 'rgba(200, 200, 200, 0.4)', maxRadius = 12) {
                     this.particles.push({
                         x, y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        radius: isFire ? (4 + Math.random() * 6) : (2 + Math.random() * 3),
-                        maxRadius: 18,
-                        color: isFire ? (Math.random() > 0.5 ? '#ef4444' : '#f59e0b') : '#475569',
-                        alpha: 1.0,
+                        vx: vx + (Math.random() - 0.5) * 1.5,
+                        vy: vy + (Math.random() - 0.5) * 1.5,
+                        radius: 3 + Math.random() * 4,
+                        maxRadius,
+                        alpha: 0.5,
+                        color,
                         life: 1.0,
                         decay: 0.02 + Math.random() * 0.02
                     });
                 }
+
+                spawnSpark(x, y) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 6;
+                    this.particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        radius: 1 + Math.random() * 2,
+                        color: '#fbbf24',
+                        alpha: 1.0,
+                        life: 1.0,
+                        decay: 0.05 + Math.random() * 0.05
+                    });
+                }
+
+                spawnExplosion(x, y) {
+                    for (let i = 0; i < 35; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 1 + Math.random() * 8;
+                        const isFire = Math.random() > 0.3;
+                        this.particles.push({
+                            x, y,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            radius: isFire ? (4 + Math.random() * 6) : (2 + Math.random() * 3),
+                            maxRadius: 18,
+                            color: isFire ? (Math.random() > 0.5 ? '#ef4444' : '#f59e0b') : '#475569',
+                            alpha: 1.0,
+                            life: 1.0,
+                            decay: 0.02 + Math.random() * 0.02
+                        });
+                    }
+                }
+
+                updateAndDraw(ctx) {
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const p = this.particles[i];
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.life -= p.decay;
+                        if (p.maxRadius && p.radius < p.maxRadius) {
+                            p.radius += 0.3;
+                        }
+
+                        if (p.life <= 0) {
+                            this.particles.splice(i, 1);
+                            continue;
+                        }
+
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, p.life * p.alpha);
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
             }
 
-            updateAndDraw(ctx) {
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    const p = this.particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.life -= p.decay;
-                    if (p.maxRadius && p.radius < p.maxRadius) {
-                        p.radius += 0.3;
+            class SkidmarkManager {
+                constructor() {
+                    this.canvas = document.createElement('canvas');
+                    this.canvas.width = MAP_SIZE;
+                    this.canvas.height = MAP_SIZE;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.clear();
+                }
+
+                clear() {
+                    this.ctx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
+                }
+
+                addSkidLine(p1, p2, alpha = 0.3) {
+                    this.ctx.save();
+                    this.ctx.strokeStyle = `rgba(15, 23, 42, ${alpha})`;
+                    this.ctx.lineWidth = 4;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(p1.x, p1.y);
+                    this.ctx.lineTo(p2.x, p2.y);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+
+                render(ctx) {
+                    ctx.drawImage(this.canvas, 0, 0);
+                }
+            }
+
+            class Vehicle {
+                constructor(x, y, carConfig) {
+                    this.x = x;
+                    this.y = y;
+                    this.angle = 0;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.width = 44;
+                    this.height = 22;
+
+                    // Base parameters from config
+                    this.config = carConfig;
+                    this.topSpeed = carConfig.topSpeed;
+                    this.accel = carConfig.accel;
+                    this.handling = carConfig.handling;
+                    this.driftGrip = carConfig.driftGrip;
+                    this.maxHealth = carConfig.maxHealth;
+                    this.health = this.maxHealth;
+
+                    this.isHandbraking = false;
+                    this.isDrifting = false;
+                    this.isNitro = false;
+                    this.lastRearLeft = null;
+                    this.lastRearRight = null;
+                }
+
+                updatePhysics(inputs) {
+                    // Determine engine acceleration & nitro state
+                    let currentAccel = this.accel;
+                    let currentTopSpeed = this.topSpeed;
+
+                    if (inputs.nitro && this.nitroEnergy > 0) {
+                        this.isNitro = true;
+                        currentAccel *= 2.2;
+                        currentTopSpeed *= 1.45;
+                        this.nitroEnergy = Math.max(0, this.nitroEnergy - 0.016);
+                    } else {
+                        this.isNitro = false;
                     }
 
-                    if (p.life <= 0) {
-                        this.particles.splice(i, 1);
-                        continue;
+                    // Throttle / Reverse
+                    if (inputs.up) {
+                        this.vx += Math.cos(this.angle) * currentAccel;
+                        this.vy += Math.sin(this.angle) * currentAccel;
+                    } else if (inputs.down) {
+                        this.vx -= Math.cos(this.angle) * (currentAccel * 0.6);
+                        this.vy -= Math.sin(this.angle) * (currentAccel * 0.6);
                     }
 
+                    // Speed calculation
+                    let currentSpeed = Math.hypot(this.vx, this.vy);
+
+                    // Cap Top Speed
+                    if (currentSpeed > currentTopSpeed) {
+                        this.vx = (this.vx / currentSpeed) * currentTopSpeed;
+                        this.vy = (this.vy / currentSpeed) * currentTopSpeed;
+                        currentSpeed = currentTopSpeed;
+                    }
+
+                    // Steering (scaled by movement speed)
+                    this.isHandbraking = inputs.handbrake;
+                    if (currentSpeed > 0.5) {
+                        const dir = currentSpeed > 0 ? 1 : -1;
+                        const turnMult = this.isHandbraking ? 1.4 : 1.0;
+                        if (inputs.left) this.angle -= this.handling * turnMult * dir;
+                        if (inputs.right) this.angle += this.handling * turnMult * dir;
+                    }
+
+                    // Split velocity into forward & lateral vectors
+                    const forwardDir = { x: Math.cos(this.angle), y: Math.sin(this.angle) };
+                    const rightDir = { x: -Math.sin(this.angle), y: Math.cos(this.angle) };
+
+                    let forwardVel = this.vx * forwardDir.x + this.vy * forwardDir.y;
+                    let lateralVel = this.vx * rightDir.x + this.vy * rightDir.y;
+
+                    // Drift grip physics calculation
+                    let grip = this.isHandbraking ? 0.78 : (this.driftGrip || 0.92);
+                    lateralVel *= grip;
+                    forwardVel *= 0.985; // Rolling drag
+
+                    // Reconstruct velocity vectors
+                    this.vx = forwardDir.x * forwardVel + rightDir.x * lateralVel;
+                    this.vy = forwardDir.y * forwardVel + rightDir.y * lateralVel;
+
+                    // Update position
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Detect drift condition (high speed & lateral movement)
+                    const lateralSlip = Math.abs(this.vx * rightDir.x + this.vy * rightDir.y);
+                    this.isDrifting = (currentSpeed > 4.5 && (lateralSlip > 1.8 || this.isHandbraking));
+
+                    // Position calculation for rear tires (skidmarks)
+                    const rearOffset = -this.width * 0.4;
+                    const sideOffset = this.height * 0.38;
+                    const rl = {
+                        x: this.x + Math.cos(this.angle) * rearOffset - Math.sin(this.angle) * (-sideOffset),
+                        y: this.y + Math.sin(this.angle) * rearOffset + Math.cos(this.angle) * (-sideOffset)
+                    };
+                    const rr = {
+                        x: this.x + Math.cos(this.angle) * rearOffset - Math.sin(this.angle) * (sideOffset),
+                        y: this.y + Math.sin(this.angle) * rearOffset + Math.cos(this.angle) * (sideOffset)
+                    };
+
+                    if (this.isDrifting && game) {
+                        if (this.lastRearLeft && this.lastRearRight) {
+                            game.skidmarks.addSkidLine(this.lastRearLeft, rl, 0.35);
+                            game.skidmarks.addSkidLine(this.lastRearRight, rr, 0.35);
+                        }
+                        // Spawn smoke particles
+                        game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2);
+                        game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2);
+
+                        if (Math.random() < 0.2) audio.playSkidSound();
+                    }
+
+                    this.lastRearLeft = rl;
+                    this.lastRearRight = rr;
+                }
+
+                draw(ctx) {
                     ctx.save();
-                    ctx.globalAlpha = Math.max(0, p.life * p.alpha);
-                    ctx.fillStyle = p.color;
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+
+                    // Nitro Flame Trail
+                    if (this.isNitro) {
+                        ctx.fillStyle = '#06b6d4';
+                        ctx.beginPath();
+                        ctx.moveTo(-this.width / 2, -6);
+                        ctx.lineTo(-this.width / 2 - 18 - Math.random() * 10, 0);
+                        ctx.lineTo(-this.width / 2, 6);
+                        ctx.fill();
+                    }
+
+                    // Vehicle Shadow
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                    ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width, this.height);
+
+                    // Body Chassis
+                    ctx.fillStyle = this.config.color || '#06b6d4';
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 6);
+                    ctx.fill();
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Roof/Windshield details
+                    ctx.fillStyle = '#1e293b';
+                    ctx.beginPath();
+                    ctx.roundRect(-this.width * 0.15, -this.height * 0.35, this.width * 0.45, this.height * 0.7, 3);
+                    ctx.fill();
+
+                    // Headlight beams glow
+                    ctx.fillStyle = 'rgba(254, 240, 138, 0.8)';
+                    ctx.fillRect(this.width / 2 - 2, -this.height / 2 + 2, 3, 5);
+                    ctx.fillRect(this.width / 2 - 2, this.height / 2 - 7, 3, 5);
+
+                    ctx.restore();
+
+                    // Headlight Light Cone in world space
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+                    const lightGrad = ctx.createRadialGradient(this.width / 2, 0, 5, this.width / 2 + 120, 0, 120);
+                    lightGrad.addColorStop(0, 'rgba(254, 240, 138, 0.25)');
+                    lightGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+                    ctx.fillStyle = lightGrad;
+                    ctx.beginPath();
+                    ctx.moveTo(this.width / 2, 0);
+                    ctx.lineTo(this.width / 2 + 150, -60);
+                    ctx.lineTo(this.width / 2 + 150, 60);
+                    ctx.closePath();
                     ctx.fill();
                     ctx.restore();
                 }
             }
-        }
 
-        class SkidmarkManager {
-            constructor() {
-                this.canvas = document.createElement('canvas');
-                this.canvas.width = MAP_SIZE;
-                this.canvas.height = MAP_SIZE;
-                this.ctx = this.canvas.getContext('2d');
-                this.clear();
-            }
+            class CopVehicle extends Vehicle {
+                constructor(x, y, copType) {
+                    let config = {
+                        topSpeed: 10.0,
+                        accel: 0.20,
+                        handling: 0.05,
+                        driftGrip: 0.90,
+                        maxHealth: 60,
+                        color: '#ffffff'
+                    };
 
-            clear() {
-                this.ctx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
-            }
-
-            addSkidLine(p1, p2, alpha = 0.3) {
-                this.ctx.save();
-                this.ctx.strokeStyle = `rgba(15, 23, 42, ${alpha})`;
-                this.ctx.lineWidth = 4;
-                this.ctx.lineCap = 'round';
-                this.ctx.beginPath();
-                this.ctx.moveTo(p1.x, p1.y);
-                this.ctx.lineTo(p2.x, p2.y);
-                this.ctx.stroke();
-                this.ctx.restore();
-            }
-
-            render(ctx) {
-                ctx.drawImage(this.canvas, 0, 0);
-            }
-        }
-
-        class Vehicle {
-            constructor(x, y, carConfig) {
-                this.x = x;
-                this.y = y;
-                this.angle = 0;
-                this.vx = 0;
-                this.vy = 0;
-                this.width = 44;
-                this.height = 22;
-
-                // Base parameters from config
-                this.config = carConfig;
-                this.topSpeed = carConfig.topSpeed;
-                this.accel = carConfig.accel;
-                this.handling = carConfig.handling;
-                this.driftGrip = carConfig.driftGrip;
-                this.maxHealth = carConfig.maxHealth;
-                this.health = this.maxHealth;
-
-                this.isHandbraking = false;
-                this.isDrifting = false;
-                this.isNitro = false;
-                this.lastRearLeft = null;
-                this.lastRearRight = null;
-            }
-
-            updatePhysics(inputs) {
-                // Determine engine acceleration & nitro state
-                let currentAccel = this.accel;
-                let currentTopSpeed = this.topSpeed;
-
-                if (inputs.nitro && this.nitroEnergy > 0) {
-                    this.isNitro = true;
-                    currentAccel *= 2.2;
-                    currentTopSpeed *= 1.45;
-                    this.nitroEnergy = Math.max(0, this.nitroEnergy - 0.016);
-                } else {
-                    this.isNitro = false;
-                }
-
-                // Throttle / Reverse
-                if (inputs.up) {
-                    this.vx += Math.cos(this.angle) * currentAccel;
-                    this.vy += Math.sin(this.angle) * currentAccel;
-                } else if (inputs.down) {
-                    this.vx -= Math.cos(this.angle) * (currentAccel * 0.6);
-                    this.vy -= Math.sin(this.angle) * (currentAccel * 0.6);
-                }
-
-                // Speed calculation
-                let currentSpeed = Math.hypot(this.vx, this.vy);
-
-                // Cap Top Speed
-                if (currentSpeed > currentTopSpeed) {
-                    this.vx = (this.vx / currentSpeed) * currentTopSpeed;
-                    this.vy = (this.vy / currentSpeed) * currentTopSpeed;
-                    currentSpeed = currentTopSpeed;
-                }
-
-                // Steering (scaled by movement speed)
-                this.isHandbraking = inputs.handbrake;
-                if (currentSpeed > 0.5) {
-                    const dir = currentSpeed > 0 ? 1 : -1;
-                    const turnMult = this.isHandbraking ? 1.4 : 1.0;
-                    if (inputs.left) this.angle -= this.handling * turnMult * dir;
-                    if (inputs.right) this.angle += this.handling * turnMult * dir;
-                }
-
-                // Split velocity into forward & lateral vectors
-                const forwardDir = { x: Math.cos(this.angle), y: Math.sin(this.angle) };
-                const rightDir = { x: -Math.sin(this.angle), y: Math.cos(this.angle) };
-
-                let forwardVel = this.vx * forwardDir.x + this.vy * forwardDir.y;
-                let lateralVel = this.vx * rightDir.x + this.vy * rightDir.y;
-
-                // Drift grip physics calculation
-                let grip = this.isHandbraking ? 0.78 : (this.driftGrip || 0.92);
-                lateralVel *= grip;
-                forwardVel *= 0.985; // Rolling drag
-
-                // Reconstruct velocity vectors
-                this.vx = forwardDir.x * forwardVel + rightDir.x * lateralVel;
-                this.vy = forwardDir.y * forwardVel + rightDir.y * lateralVel;
-
-                // Update position
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // Detect drift condition (high speed & lateral movement)
-                const lateralSlip = Math.abs(this.vx * rightDir.x + this.vy * rightDir.y);
-                this.isDrifting = (currentSpeed > 4.5 && (lateralSlip > 1.8 || this.isHandbraking));
-
-                // Position calculation for rear tires (skidmarks)
-                const rearOffset = -this.width * 0.4;
-                const sideOffset = this.height * 0.38;
-                const rl = {
-                    x: this.x + Math.cos(this.angle) * rearOffset - Math.sin(this.angle) * (-sideOffset),
-                    y: this.y + Math.sin(this.angle) * rearOffset + Math.cos(this.angle) * (-sideOffset)
-                };
-                const rr = {
-                    x: this.x + Math.cos(this.angle) * rearOffset - Math.sin(this.angle) * (sideOffset),
-                    y: this.y + Math.sin(this.angle) * rearOffset + Math.cos(this.angle) * (sideOffset)
-                };
-
-                if (this.isDrifting && game) {
-                    if (this.lastRearLeft && this.lastRearRight) {
-                        game.skidmarks.addSkidLine(this.lastRearLeft, rl, 0.35);
-                        game.skidmarks.addSkidLine(this.lastRearRight, rr, 0.35);
+                    if (copType === 'INTERCEPTOR') {
+                        config.topSpeed = 12.8;
+                        config.accel = 0.26;
+                        config.handling = 0.06;
+                        config.color = '#f59e0b'; // Yellow fast cop
+                        config.maxHealth = 45;
+                    } else if (copType === 'SWAT') {
+                        config.topSpeed = 9.2;
+                        config.accel = 0.18;
+                        config.handling = 0.04;
+                        config.color = '#1e293b'; // Heavy SWAT SUV
+                        config.maxHealth = 140;
                     }
-                    // Spawn smoke particles
-                    game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2);
-                    game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2);
 
-                    if (Math.random() < 0.2) audio.playSkidSound();
+                    super(x, y, config);
+                    this.copType = copType;
+                    this.sirenTimer = 0;
                 }
 
-                this.lastRearLeft = rl;
-                this.lastRearRight = rr;
-            }
+                updateAI(targetPlayer) {
+                    this.sirenTimer += 0.1;
 
-            draw(ctx) {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
+                    // Simple Vector Pursuit steering toward player position
+                    const dx = targetPlayer.x - this.x;
+                    const dy = targetPlayer.y - this.y;
+                    const targetAngle = Math.atan2(dy, dx);
 
-                // Nitro Flame Trail
-                if (this.isNitro) {
-                    ctx.fillStyle = '#06b6d4';
+                    // Angle difference normalization
+                    let angleDiff = targetAngle - this.angle;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+                    const steerInput = {
+                        up: true,
+                        down: false,
+                        left: angleDiff < -0.1,
+                        right: angleDiff > 0.1,
+                        handbrake: Math.abs(angleDiff) > 1.2, // Handbrake turn on tight angles
+                        nitro: false
+                    };
+
+                    this.updatePhysics(steerInput);
+                }
+
+                draw(ctx) {
+                    super.draw(ctx);
+
+                    // Flashy Siren Lights (Red & Blue)
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+
+                    const flash = Math.sin(this.sirenTimer * 10) > 0;
+                    ctx.fillStyle = flash ? '#ef4444' : '#3b82f6';
                     ctx.beginPath();
-                    ctx.moveTo(-this.width / 2, -6);
-                    ctx.lineTo(-this.width / 2 - 18 - Math.random() * 10, 0);
-                    ctx.lineTo(-this.width / 2, 6);
+                    ctx.arc(0, -this.height * 0.2, 4, 0, Math.PI * 2);
                     ctx.fill();
+
+                    ctx.fillStyle = !flash ? '#ef4444' : '#3b82f6';
+                    ctx.beginPath();
+                    ctx.arc(0, this.height * 0.2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            }
+
+            class MapProp {
+                constructor(x, y, type) {
+                    this.x = x;
+                    this.y = y;
+                    this.type = type; // 'BARREL' or 'CRATE'
+                    this.radius = type === 'BARREL' ? 14 : 18;
+                    this.destroyed = false;
                 }
 
-                // Vehicle Shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-                ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width, this.height);
+                draw(ctx) {
+                    if (this.destroyed) return;
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
 
-                // Body Chassis
-                ctx.fillStyle = this.config.color || '#06b6d4';
-                ctx.beginPath();
-                ctx.roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 6);
-                ctx.fill();
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                    if (this.type === 'BARREL') {
+                        ctx.fillStyle = '#ef4444';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#7f1d1d';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    } else {
+                        ctx.fillStyle = '#d97706';
+                        ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+                        ctx.strokeStyle = '#78350f';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+                    }
 
-                // Roof/Windshield details
-                ctx.fillStyle = '#1e293b';
-                ctx.beginPath();
-                ctx.roundRect(-this.width * 0.15, -this.height * 0.35, this.width * 0.45, this.height * 0.7, 3);
-                ctx.fill();
-
-                // Headlight beams glow
-                ctx.fillStyle = 'rgba(254, 240, 138, 0.8)';
-                ctx.fillRect(this.width / 2 - 2, -this.height / 2 + 2, 3, 5);
-                ctx.fillRect(this.width / 2 - 2, this.height / 2 - 7, 3, 5);
-
-                ctx.restore();
-
-                // Headlight Light Cone in world space
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-                const lightGrad = ctx.createRadialGradient(this.width / 2, 0, 5, this.width / 2 + 120, 0, 120);
-                lightGrad.addColorStop(0, 'rgba(254, 240, 138, 0.25)');
-                lightGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
-                ctx.fillStyle = lightGrad;
-                ctx.beginPath();
-                ctx.moveTo(this.width / 2, 0);
-                ctx.lineTo(this.width / 2 + 150, -60);
-                ctx.lineTo(this.width / 2 + 150, 60);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
+                    ctx.restore();
+                }
             }
-        }
 
-        class CopVehicle extends Vehicle {
-            constructor(x, y, copType) {
-                let config = {
-                    topSpeed: 10.0,
-                    accel: 0.20,
-                    handling: 0.05,
-                    driftGrip: 0.90,
-                    maxHealth: 60,
-                    color: '#ffffff'
-                };
-
-                if (copType === 'INTERCEPTOR') {
-                    config.topSpeed = 12.8;
-                    config.accel = 0.26;
-                    config.handling = 0.06;
-                    config.color = '#f59e0b'; // Yellow fast cop
-                    config.maxHealth = 45;
-                } else if (copType === 'SWAT') {
-                    config.topSpeed = 9.2;
-                    config.accel = 0.18;
-                    config.handling = 0.04;
-                    config.color = '#1e293b'; // Heavy SWAT SUV
-                    config.maxHealth = 140;
+            class CoinPickup {
+                constructor(x, y, value = 25) {
+                    this.x = x;
+                    this.y = y;
+                    this.value = value;
+                    this.radius = 10;
+                    this.bobble = Math.random() * 10;
                 }
 
-                super(x, y, config);
-                this.copType = copType;
-                this.sirenTimer = 0;
-            }
+                draw(ctx) {
+                    this.bobble += 0.08;
+                    const offset = Math.sin(this.bobble) * 3;
 
-            updateAI(targetPlayer) {
-                this.sirenTimer += 0.1;
+                    ctx.save();
+                    ctx.translate(this.x, this.y + offset);
 
-                // Simple Vector Pursuit steering toward player position
-                const dx = targetPlayer.x - this.x;
-                const dy = targetPlayer.y - this.y;
-                const targetAngle = Math.atan2(dy, dx);
-
-                // Angle difference normalization
-                let angleDiff = targetAngle - this.angle;
-                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-
-                const steerInput = {
-                    up: true,
-                    down: false,
-                    left: angleDiff < -0.1,
-                    right: angleDiff > 0.1,
-                    handbrake: Math.abs(angleDiff) > 1.2, // Handbrake turn on tight angles
-                    nitro: false
-                };
-
-                this.updatePhysics(steerInput);
-            }
-
-            draw(ctx) {
-                super.draw(ctx);
-
-                // Flashy Siren Lights (Red & Blue)
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-
-                const flash = Math.sin(this.sirenTimer * 10) > 0;
-                ctx.fillStyle = flash ? '#ef4444' : '#3b82f6';
-                ctx.beginPath();
-                ctx.arc(0, -this.height * 0.2, 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = !flash ? '#ef4444' : '#3b82f6';
-                ctx.beginPath();
-                ctx.arc(0, this.height * 0.2, 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.restore();
-            }
-        }
-
-        class MapProp {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.type = type; // 'BARREL' or 'CRATE'
-                this.radius = type === 'BARREL' ? 14 : 18;
-                this.destroyed = false;
-            }
-
-            draw(ctx) {
-                if (this.destroyed) return;
-                ctx.save();
-                ctx.translate(this.x, this.y);
-
-                if (this.type === 'BARREL') {
-                    ctx.fillStyle = '#ef4444';
+                    // Golden Glow
+                    ctx.fillStyle = '#f59e0b';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = '#7f1d1d';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                } else {
-                    ctx.fillStyle = '#d97706';
-                    ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                    ctx.strokeStyle = '#78350f';
+                    ctx.strokeStyle = '#fef08a';
                     ctx.lineWidth = 2;
-                    ctx.strokeRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#78350f';
+                    ctx.font = '900 10px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('$', 0, 1);
+
+                    ctx.restore();
+                }
+            }
+
+            class Camera {
+                constructor() {
+                    this.x = MAP_SIZE / 2;
+                    this.y = MAP_SIZE / 2;
+                    this.zoom = 1.0;
+                    this.targetZoom = 1.0;
+                    this.shake = 0;
                 }
 
-                ctx.restore();
-            }
-        }
+                follow(target, viewportWidth, viewportHeight) {
+                    // Smooth Lerp Camera tracking
+                    this.x += (target.x - this.x) * 0.08;
+                    this.y += (target.y - this.y) * 0.08;
 
-        class CoinPickup {
-            constructor(x, y, value = 25) {
-                this.x = x;
-                this.y = y;
-                this.value = value;
-                this.radius = 10;
-                this.bobble = Math.random() * 10;
-            }
+                    // Speed-based dynamic zoom
+                    const speed = Math.hypot(target.vx, target.vy);
+                    this.targetZoom = 1.0 - Math.min(0.25, speed * 0.015);
+                    this.zoom += (this.targetZoom - this.zoom) * 0.05;
 
-            draw(ctx) {
-                this.bobble += 0.08;
-                const offset = Math.sin(this.bobble) * 3;
+                    // Screen Shake Decay
+                    if (this.shake > 0) this.shake *= 0.88;
+                }
 
-                ctx.save();
-                ctx.translate(this.x, this.y + offset);
+                applyTransform(ctx, viewportWidth, viewportHeight) {
+                    ctx.save();
+                    ctx.translate(viewportWidth / 2, viewportHeight / 2);
+                    ctx.scale(this.zoom, this.zoom);
 
-                // Golden Glow
-                ctx.fillStyle = '#f59e0b';
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#fef08a';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                    let shakeX = (Math.random() - 0.5) * this.shake;
+                    let shakeY = (Math.random() - 0.5) * this.shake;
+                    ctx.translate(-this.x + shakeX, -this.y + shakeY);
+                }
 
-                ctx.fillStyle = '#78350f';
-                ctx.font = '900 10px Orbitron';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('$', 0, 1);
-
-                ctx.restore();
-            }
-        }
-
-        class Camera {
-            constructor() {
-                this.x = MAP_SIZE / 2;
-                this.y = MAP_SIZE / 2;
-                this.zoom = 1.0;
-                this.targetZoom = 1.0;
-                this.shake = 0;
+                restoreTransform(ctx) {
+                    ctx.restore();
+                }
             }
 
-            follow(target, viewportWidth, viewportHeight) {
-                // Smooth Lerp Camera tracking
-                this.x += (target.x - this.x) * 0.08;
-                this.y += (target.y - this.y) * 0.08;
+            class GameEngine {
+                constructor() {
+                    this.state = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+                    this.player = null;
+                    this.cops = [];
+                    this.props = [];
+                    this.coins = [];
+                    this.particles = new ParticleSystem();
+                    this.skidmarks = new SkidmarkManager();
+                    this.camera = new Camera();
 
-                // Speed-based dynamic zoom
-                const speed = Math.hypot(target.vx, target.vy);
-                this.targetZoom = 1.0 - Math.min(0.25, speed * 0.015);
-                this.zoom += (this.targetZoom - this.zoom) * 0.05;
+                    this.score = 0;
+                    this.coinsEarnedSession = 0;
+                    this.copsWrecked = 0;
+                    this.survivalTimer = 0;
+                    this.copSpawnTimer = 0;
 
-                // Screen Shake Decay
-                if (this.shake > 0) this.shake *= 0.88;
-            }
+                    this.driftComboScore = 0;
+                    this.driftMultiplier = 1.0;
 
-            applyTransform(ctx, viewportWidth, viewportHeight) {
-                ctx.save();
-                ctx.translate(viewportWidth / 2, viewportHeight / 2);
-                ctx.scale(this.zoom, this.zoom);
+                    this.inputs = {
+                        up: false,
+                        down: false,
+                        left: false,
+                        right: false,
+                        handbrake: false,
+                        nitro: false
+                    };
 
-                let shakeX = (Math.random() - 0.5) * this.shake;
-                let shakeY = (Math.random() - 0.5) * this.shake;
-                ctx.translate(-this.x + shakeX, -this.y + shakeY);
-            }
+                    this.initMapProps();
+                }
 
-            restoreTransform(ctx) {
-                ctx.restore();
-            }
-        }
+                initMapProps() {
+                    this.props = [];
+                    // Scatter random barrels/crates around map
+                    for (let i = 0; i < 90; i++) {
+                        const x = 200 + Math.random() * (MAP_SIZE - 400);
+                        const y = 200 + Math.random() * (MAP_SIZE - 400);
+                        const type = Math.random() > 0.5 ? 'BARREL' : 'CRATE';
+                        this.props.push(new MapProp(x, y, type));
+                    }
+                }
 
-        class GameEngine {
-            constructor() {
-                this.state = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
-                this.player = null;
-                this.cops = [];
-                this.props = [];
-                this.coins = [];
-                this.particles = new ParticleSystem();
-                this.skidmarks = new SkidmarkManager();
-                this.camera = new Camera();
+                startNewGame() {
+                    audio.init();
 
-                this.score = 0;
-                this.coinsEarnedSession = 0;
-                this.copsWrecked = 0;
-                this.survivalTimer = 0;
-                this.copSpawnTimer = 0;
+                    const carConfig = CAR_CATALOG[saveData.selectedCar || 0];
 
-                this.driftComboScore = 0;
-                this.driftMultiplier = 1.0;
+                    // Apply Upgrades
+                    const upgradedConfig = { ...carConfig };
+                    upgradedConfig.topSpeed += (saveData.upgrades.engine || 0) * 0.8;
+                    upgradedConfig.accel += (saveData.upgrades.engine || 0) * 0.03;
+                    upgradedConfig.maxHealth += (saveData.upgrades.armor || 0) * 25;
 
-                this.inputs = {
-                    up: false,
-                    down: false,
-                    left: false,
-                    right: false,
-                    handbrake: false,
-                    nitro: false
-                };
+                    this.player = new Vehicle(MAP_SIZE / 2, MAP_SIZE / 2, upgradedConfig);
+                    this.player.nitroEnergy = upgradedConfig.nitroMax;
+                    this.player.nitroMax = upgradedConfig.nitroMax;
 
-                this.initMapProps();
-            }
+                    this.cops = [];
+                    this.coins = [];
+                    this.skidmarks.clear();
 
-            initMapProps() {
-                this.props = [];
-                // Scatter random barrels/crates around map
-                for (let i = 0; i < 90; i++) {
+                    this.score = 0;
+                    this.coinsEarnedSession = 0;
+                    this.copsWrecked = 0;
+                    this.survivalTimer = 0;
+                    this.copSpawnTimer = 0;
+                    this.driftComboScore = 0;
+                    this.driftMultiplier = 1.0;
+
+                    // Initial Coy Spawns
+                    this.spawnCop('STANDARD');
+                    this.spawnCop('STANDARD');
+
+                    // Spawn initial map coins
+                    for (let i = 0; i < 20; i++) {
+                        this.spawnRandomCoin();
+                    }
+
+                    this.state = 'PLAYING';
+
+                    document.getElementById('mainMenu').classList.add('hidden');
+                    document.getElementById('gameOverModal').classList.add('hidden');
+                    document.getElementById('hudOverlay').classList.remove('hidden');
+                }
+
+                spawnCop(type) {
+                    // Spawn cops around map perimeter near player
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 900 + Math.random() * 300;
+                    const x = Math.max(100, Math.min(MAP_SIZE - 100, this.player.x + Math.cos(angle) * dist));
+                    const y = Math.max(100, Math.min(MAP_SIZE - 100, this.player.y + Math.sin(angle) * dist));
+                    this.cops.push(new CopVehicle(x, y, type));
+                }
+
+                spawnRandomCoin() {
                     const x = 200 + Math.random() * (MAP_SIZE - 400);
                     const y = 200 + Math.random() * (MAP_SIZE - 400);
-                    const type = Math.random() > 0.5 ? 'BARREL' : 'CRATE';
-                    this.props.push(new MapProp(x, y, type));
-                }
-            }
-
-            startNewGame() {
-                audio.init();
-
-                const carConfig = CAR_CATALOG[saveData.selectedCar || 0];
-
-                // Apply Upgrades
-                const upgradedConfig = { ...carConfig };
-                upgradedConfig.topSpeed += (saveData.upgrades.engine || 0) * 0.8;
-                upgradedConfig.accel += (saveData.upgrades.engine || 0) * 0.03;
-                upgradedConfig.maxHealth += (saveData.upgrades.armor || 0) * 25;
-
-                this.player = new Vehicle(MAP_SIZE / 2, MAP_SIZE / 2, upgradedConfig);
-                this.player.nitroEnergy = upgradedConfig.nitroMax;
-                this.player.nitroMax = upgradedConfig.nitroMax;
-
-                this.cops = [];
-                this.coins = [];
-                this.skidmarks.clear();
-
-                this.score = 0;
-                this.coinsEarnedSession = 0;
-                this.copsWrecked = 0;
-                this.survivalTimer = 0;
-                this.copSpawnTimer = 0;
-                this.driftComboScore = 0;
-                this.driftMultiplier = 1.0;
-
-                // Initial Coy Spawns
-                this.spawnCop('STANDARD');
-                this.spawnCop('STANDARD');
-
-                // Spawn initial map coins
-                for (let i = 0; i < 20; i++) {
-                    this.spawnRandomCoin();
+                    this.coins.push(new CoinPickup(x, y, 25));
                 }
 
-                this.state = 'PLAYING';
+                update() {
+                    if (this.state !== 'PLAYING') return;
 
-                document.getElementById('mainMenu').classList.add('hidden');
-                document.getElementById('gameOverModal').classList.add('hidden');
-                document.getElementById('hudOverlay').classList.remove('hidden');
-            }
+                    this.survivalTimer += 1 / 60;
+                    this.copSpawnTimer += 1 / 60;
 
-            spawnCop(type) {
-                // Spawn cops around map perimeter near player
-                const angle = Math.random() * Math.PI * 2;
-                const dist = 900 + Math.random() * 300;
-                const x = Math.max(100, Math.min(MAP_SIZE - 100, this.player.x + Math.cos(angle) * dist));
-                const y = Math.max(100, Math.min(MAP_SIZE - 100, this.player.y + Math.sin(angle) * dist));
-                this.cops.push(new CopVehicle(x, y, type));
-            }
-
-            spawnRandomCoin() {
-                const x = 200 + Math.random() * (MAP_SIZE - 400);
-                const y = 200 + Math.random() * (MAP_SIZE - 400);
-                this.coins.push(new CoinPickup(x, y, 25));
-            }
-
-            update() {
-                if (this.state !== 'PLAYING') return;
-
-                this.survivalTimer += 1 / 60;
-                this.copSpawnTimer += 1 / 60;
-
-                // Dynamic Cop Spawns (increasing intensity)
-                const spawnInterval = Math.max(4, 12 - Math.floor(this.survivalTimer / 20));
-                if (this.copSpawnTimer >= spawnInterval && this.cops.length < 12) {
-                    this.copSpawnTimer = 0;
-                    const r = Math.random();
-                    const copType = r > 0.7 ? 'SWAT' : (r > 0.4 ? 'INTERCEPTOR' : 'STANDARD');
-                    this.spawnCop(copType);
-                }
-
-                // Update Player
-                this.player.updatePhysics(this.inputs);
-                audio.updateEnginePitch(Math.hypot(this.player.vx, this.player.vy) / this.player.topSpeed);
-
-                // Map Boundary Collisions for Player
-                if (this.player.x < 100 || this.player.x > MAP_SIZE - 100 || this.player.y < 100 || this.player.y > MAP_SIZE - 100) {
-                    this.player.health -= 0.8;
-                    this.camera.shake = 12;
-                    this.particles.spawnSpark(this.player.x, this.player.y);
-                }
-
-                // Drift Combo Logic
-                if (this.player.isDrifting) {
-                    this.driftComboScore += 12;
-                    this.driftMultiplier = Math.min(5.0, this.driftMultiplier + 0.005);
-                    this.score += Math.floor(2 * this.driftMultiplier);
-
-                    // Show drift overlay
-                    const comboElem = document.getElementById('driftComboContainer');
-                    comboElem.style.opacity = '1';
-                    document.getElementById('driftComboMultiplier').innerText = `DRIFT x${this.driftMultiplier.toFixed(1)}`;
-                    document.getElementById('driftComboScore').innerText = `+${Math.floor(this.driftComboScore)}`;
-                } else {
-                    if (this.driftComboScore > 0) {
-                        this.score += Math.floor(this.driftComboScore * this.driftMultiplier);
-                        this.driftComboScore = 0;
-                        this.driftMultiplier = 1.0;
+                    // Dynamic Cop Spawns (increasing intensity)
+                    const spawnInterval = Math.max(4, 12 - Math.floor(this.survivalTimer / 20));
+                    if (this.copSpawnTimer >= spawnInterval && this.cops.length < 12) {
+                        this.copSpawnTimer = 0;
+                        const r = Math.random();
+                        const copType = r > 0.7 ? 'SWAT' : (r > 0.4 ? 'INTERCEPTOR' : 'STANDARD');
+                        this.spawnCop(copType);
                     }
-                    document.getElementById('driftComboContainer').style.opacity = '0';
-                }
 
-                // Update Cops & Cop Collisions
-                for (let i = this.cops.length - 1; i >= 0; i--) {
-                    const cop = this.cops[i];
-                    cop.updateAI(this.player);
+                    // Update Player
+                    this.player.updatePhysics(this.inputs);
+                    audio.updateEnginePitch(Math.hypot(this.player.vx, this.player.vy) / this.player.topSpeed);
 
-                    // Cop vs Player Collision
-                    const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
-                    if (distToPlayer < 36) {
-                        this.camera.shake = 18;
-                        this.particles.spawnSpark((cop.x + this.player.x) / 2, (cop.y + this.player.y) / 2);
+                    // Map Boundary Collisions for Player
+                    if (this.player.x < 100 || this.player.x > MAP_SIZE - 100 || this.player.y < 100 || this.player.y > MAP_SIZE - 100) {
+                        this.player.health -= 0.8;
+                        this.camera.shake = 12;
+                        this.particles.spawnSpark(this.player.x, this.player.y);
+                    }
 
-                        if (this.player.isNitro) {
-                            // Player rams cop in nitro state!
-                            cop.health -= 60;
-                            this.player.health -= 5;
-                        } else {
-                            this.player.health -= 0.6;
-                            cop.health -= 0.4;
+                    // Drift Combo Logic
+                    if (this.player.isDrifting) {
+                        this.driftComboScore += 12;
+                        this.driftMultiplier = Math.min(5.0, this.driftMultiplier + 0.005);
+                        this.score += Math.floor(2 * this.driftMultiplier);
+
+                        // Show drift overlay
+                        const comboElem = document.getElementById('driftComboContainer');
+                        comboElem.style.opacity = '1';
+                        document.getElementById('driftComboMultiplier').innerText = `DRIFT x${this.driftMultiplier.toFixed(1)}`;
+                        document.getElementById('driftComboScore').innerText = `+${Math.floor(this.driftComboScore)}`;
+                    } else {
+                        if (this.driftComboScore > 0) {
+                            this.score += Math.floor(this.driftComboScore * this.driftMultiplier);
+                            this.driftComboScore = 0;
+                            this.driftMultiplier = 1.0;
+                        }
+                        document.getElementById('driftComboContainer').style.opacity = '0';
+                    }
+
+                    // Update Cops & Cop Collisions
+                    for (let i = this.cops.length - 1; i >= 0; i--) {
+                        const cop = this.cops[i];
+                        cop.updateAI(this.player);
+
+                        // Cop vs Player Collision
+                        const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
+                        if (distToPlayer < 36) {
+                            this.camera.shake = 18;
+                            this.particles.spawnSpark((cop.x + this.player.x) / 2, (cop.y + this.player.y) / 2);
+
+                            if (this.player.isNitro) {
+                                // Player rams cop in nitro state!
+                                cop.health -= 60;
+                                this.player.health -= 5;
+                            } else {
+                                this.player.health -= 0.6;
+                                cop.health -= 0.4;
+                            }
+                        }
+
+                        // Cop vs Cop Collisions
+                        for (let j = i - 1; j >= 0; j--) {
+                            const otherCop = this.cops[j];
+                            const dC = Math.hypot(cop.x - otherCop.x, cop.y - otherCop.y);
+                            if (dC < 32) {
+                                cop.health -= 1.5;
+                                otherCop.health -= 1.5;
+                                this.particles.spawnSpark((cop.x + otherCop.x) / 2, (cop.y + otherCop.y) / 2);
+                            }
+                        }
+
+                        // Wreck Cop condition
+                        if (cop.health <= 0) {
+                            this.particles.spawnExplosion(cop.x, cop.y);
+                            audio.playExplosion();
+                            this.cops.splice(i, 1);
+                            this.copsWrecked++;
+                            this.score += 500;
+                            this.coinsEarnedSession += 100;
+
+                            // Spawn reward coins
+                            for (let c = 0; c < 3; c++) {
+                                this.coins.push(new CoinPickup(cop.x + (Math.random() - 0.5) * 40, cop.y + (Math.random() - 0.5) * 40, 50));
+                            }
                         }
                     }
 
-                    // Cop vs Cop Collisions
-                    for (let j = i - 1; j >= 0; j--) {
-                        const otherCop = this.cops[j];
-                        const dC = Math.hypot(cop.x - otherCop.x, cop.y - otherCop.y);
-                        if (dC < 32) {
-                            cop.health -= 1.5;
-                            otherCop.health -= 1.5;
-                            this.particles.spawnSpark((cop.x + otherCop.x) / 2, (cop.y + otherCop.y) / 2);
+                    // Coin Collection
+                    for (let i = this.coins.length - 1; i >= 0; i--) {
+                        const coin = this.coins[i];
+                        if (Math.hypot(coin.x - this.player.x, coin.y - this.player.y) < 32) {
+                            this.coinsEarnedSession += coin.value;
+                            this.score += 100;
+                            audio.playCoin();
+                            this.coins.splice(i, 1);
                         }
                     }
 
-                    // Wreck Cop condition
-                    if (cop.health <= 0) {
-                        this.particles.spawnExplosion(cop.x, cop.y);
-                        audio.playExplosion();
-                        this.cops.splice(i, 1);
-                        this.copsWrecked++;
-                        this.score += 500;
-                        this.coinsEarnedSession += 100;
-
-                        // Spawn reward coins
-                        for (let c = 0; c < 3; c++) {
-                            this.coins.push(new CoinPickup(cop.x + (Math.random() - 0.5) * 40, cop.y + (Math.random() - 0.5) * 40, 50));
+                    // Map Prop Collisions
+                    for (let p of this.props) {
+                        if (p.destroyed) continue;
+                        if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < p.radius + 18) {
+                            p.destroyed = true;
+                            this.particles.spawnExplosion(p.x, p.y);
+                            this.camera.shake = 8;
                         }
                     }
-                }
 
-                // Coin Collection
-                for (let i = this.coins.length - 1; i >= 0; i--) {
-                    const coin = this.coins[i];
-                    if (Math.hypot(coin.x - this.player.x, coin.y - this.player.y) < 32) {
-                        this.coinsEarnedSession += coin.value;
-                        this.score += 100;
-                        audio.playCoin();
-                        this.coins.splice(i, 1);
+                    // Camera Follow
+                    this.camera.follow(this.player, CANVAS.width, CANVAS.height);
+
+                    // Check Game Over Condition
+                    if (this.player.health <= 0) {
+                        this.triggerGameOver();
                     }
+
+                    this.updateHUD();
                 }
 
-                // Map Prop Collisions
-                for (let p of this.props) {
-                    if (p.destroyed) continue;
-                    if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < p.radius + 18) {
-                        p.destroyed = true;
-                        this.particles.spawnExplosion(p.x, p.y);
-                        this.camera.shake = 8;
+                updateHUD() {
+                    document.getElementById('hudHealthText').innerText = `${Math.max(0, Math.ceil((this.player.health / this.player.maxHealth) * 100))}%`;
+                    document.getElementById('hudHealthBar').style.width = `${Math.max(0, (this.player.health / this.player.maxHealth) * 100)}%`;
+
+                    document.getElementById('hudNitroText').innerText = `${Math.ceil((this.player.nitroEnergy / this.player.nitroMax) * 100)}%`;
+                    document.getElementById('hudNitroBar').style.width = `${(this.player.nitroEnergy / this.player.nitroMax) * 100}%`;
+
+                    document.getElementById('hudScore').innerText = this.score;
+                    document.getElementById('hudCoins').innerText = `$${this.coinsEarnedSession}`;
+
+                    const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
+                    const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
+                    document.getElementById('hudTimer').innerText = `${mins}:${secs}`;
+                    document.getElementById('hudCopsWrecked').innerText = `${this.copsWrecked} COPS`;
+
+                    const speed = Math.floor(Math.hypot(this.player.vx, this.player.vy) * 12);
+                    document.getElementById('hudSpeed').innerText = speed;
+                }
+
+                triggerGameOver() {
+                    this.state = 'GAMEOVER';
+                    audio.playExplosion();
+
+                    saveData.coins += this.coinsEarnedSession;
+                    if (this.score > saveData.highScore) {
+                        saveData.highScore = this.score;
                     }
+                    saveGame();
+
+                    document.getElementById('goScore').innerText = this.score;
+                    const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
+                    const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
+                    document.getElementById('goTime').innerText = `${mins}:${secs}`;
+                    document.getElementById('goCops').innerText = this.copsWrecked;
+                    document.getElementById('goCash').innerText = `+$${this.coinsEarnedSession}`;
+
+                    document.getElementById('hudOverlay').classList.add('hidden');
+                    document.getElementById('gameOverModal').classList.remove('hidden');
                 }
 
-                // Camera Follow
-                this.camera.follow(this.player, CANVAS.width, CANVAS.height);
+                render() {
+                    CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
 
-                // Check Game Over Condition
-                if (this.player.health <= 0) {
-                    this.triggerGameOver();
+                    if (this.state === 'MENU' || !this.player) {
+                        // Render animated background on menu
+                        CTX.fillStyle = '#0f172a';
+                        CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
+                        return;
+                    }
+
+                    // Render In-Game World
+                    this.camera.applyTransform(CTX, CANVAS.width, CANVAS.height);
+
+                    // Asphalt Ground
+                    CTX.fillStyle = '#1e293b';
+                    CTX.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+
+                    // Grid Lines
+                    CTX.strokeStyle = '#334155';
+                    CTX.lineWidth = 2;
+                    const gridSize = 120;
+                    for (let x = 0; x < MAP_SIZE; x += gridSize) {
+                        CTX.beginPath();
+                        CTX.moveTo(x, 0);
+                        CTX.lineTo(x, MAP_SIZE);
+                        CTX.stroke();
+                    }
+                    for (let y = 0; y < MAP_SIZE; y += gridSize) {
+                        CTX.beginPath();
+                        CTX.moveTo(0, y);
+                        CTX.lineTo(MAP_SIZE, y);
+                        CTX.stroke();
+                    }
+
+                    // Red Outer Barriers
+                    CTX.strokeStyle = '#ef4444';
+                    CTX.lineWidth = 16;
+                    CTX.strokeRect(80, 80, MAP_SIZE - 160, MAP_SIZE - 160);
+
+                    // Render Permanent Skidmarks
+                    this.skidmarks.render(CTX);
+
+                    // Render Map Props
+                    for (let p of this.props) p.draw(CTX);
+
+                    // Render Coins
+                    for (let c of this.coins) c.draw(CTX);
+
+                    // Render Player & Cops
+                    this.player.draw(CTX);
+                    for (let cop of this.cops) cop.draw(CTX);
+
+                    // Render Particle System
+                    this.particles.updateAndDraw(CTX);
+
+                    this.camera.restoreTransform(CTX);
                 }
-
-                this.updateHUD();
             }
 
-            updateHUD() {
-                document.getElementById('hudHealthText').innerText = `${Math.max(0, Math.ceil((this.player.health / this.player.maxHealth) * 100))}%`;
-                document.getElementById('hudHealthBar').style.width = `${Math.max(0, (this.player.health / this.player.maxHealth) * 100)}%`;
+            const game = new GameEngine();
 
-                document.getElementById('hudNitroText').innerText = `${Math.ceil((this.player.nitroEnergy / this.player.nitroMax) * 100)}%`;
-                document.getElementById('hudNitroBar').style.width = `${(this.player.nitroEnergy / this.player.nitroMax) * 100}%`;
+            function resizeCanvas() {
+                CANVAS.width = window.innerWidth;
+                CANVAS.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
 
-                document.getElementById('hudScore').innerText = this.score;
-                document.getElementById('hudCoins').innerText = `$${this.coinsEarnedSession}`;
+            // Keyboard Event Listeners
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') game.inputs.up = true;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') game.inputs.down = true;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') game.inputs.left = true;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') game.inputs.right = true;
+                if (e.code === 'Space') game.inputs.handbrake = true;
+                if (e.code === 'ShiftLeft' || e.code === 'KeyE') game.inputs.nitro = true;
+            });
 
-                const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
-                const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
-                document.getElementById('hudTimer').innerText = `${mins}:${secs}`;
-                document.getElementById('hudCopsWrecked').innerText = `${this.copsWrecked} COPS`;
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') game.inputs.up = false;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') game.inputs.down = false;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') game.inputs.left = false;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') game.inputs.right = false;
+                if (e.code === 'Space') game.inputs.handbrake = false;
+                if (e.code === 'ShiftLeft' || e.code === 'KeyE') game.inputs.nitro = false;
+            });
 
-                const speed = Math.floor(Math.hypot(this.player.vx, this.player.vy) * 12);
-                document.getElementById('hudSpeed').innerText = speed;
+            // Mobile Touch Button Listeners
+            function bindTouchBtn(id, keyProp) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                const start = (e) => { e.preventDefault(); game.inputs[keyProp] = true; btn.classList.add('active'); };
+                const end = (e) => { e.preventDefault(); game.inputs[keyProp] = false; btn.classList.remove('active'); };
+                btn.addEventListener('touchstart', start);
+                btn.addEventListener('touchend', end);
+                btn.addEventListener('mousedown', start);
+                btn.addEventListener('mouseup', end);
             }
 
-            triggerGameOver() {
-                this.state = 'GAMEOVER';
-                audio.playExplosion();
+            bindTouchBtn('btnTouchLeft', 'left');
+            bindTouchBtn('btnTouchRight', 'right');
+            bindTouchBtn('btnTouchGas', 'up');
+            bindTouchBtn('btnTouchBrake', 'down');
+            bindTouchBtn('btnTouchDrift', 'handbrake');
+            bindTouchBtn('btnTouchNitro', 'nitro');
 
-                saveData.coins += this.coinsEarnedSession;
-                if (this.score > saveData.highScore) {
-                    saveData.highScore = this.score;
-                }
-                saveGame();
-
-                document.getElementById('goScore').innerText = this.score;
-                const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
-                const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
-                document.getElementById('goTime').innerText = `${mins}:${secs}`;
-                document.getElementById('goCops').innerText = this.copsWrecked;
-                document.getElementById('goCash').innerText = `+$${this.coinsEarnedSession}`;
-
-                document.getElementById('hudOverlay').classList.add('hidden');
-                document.getElementById('gameOverModal').classList.remove('hidden');
+            function updateMenuData() {
+                document.getElementById('menuHighScore').innerText = saveData.highScore;
+                document.getElementById('menuTotalCoins').innerText = `$${saveData.coins}`;
+                document.getElementById('garageCashDisplay').innerText = `$${saveData.coins}`;
             }
 
-            render() {
-                CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
+            // Render Garage Vehicles
+            function renderGarageList() {
+                const container = document.getElementById('carListContainer');
+                container.innerHTML = '';
 
-                if (this.state === 'MENU' || !this.player) {
-                    // Render animated background on menu
-                    CTX.fillStyle = '#0f172a';
-                    CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
-                    return;
-                }
+                CAR_CATALOG.forEach((car, index) => {
+                    const isUnlocked = saveData.unlockedCars[index];
+                    const isSelected = saveData.selectedCar === index;
 
-                // Render In-Game World
-                this.camera.applyTransform(CTX, CANVAS.width, CANVAS.height);
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-2xl border cursor-pointer transition flex justify-between items-center ${isSelected ? 'bg-cyan-950/40 border-cyan-400 neon-border-cyan' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`;
+                    card.onclick = () => selectGarageCar(index);
 
-                // Asphalt Ground
-                CTX.fillStyle = '#1e293b';
-                CTX.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
-
-                // Grid Lines
-                CTX.strokeStyle = '#334155';
-                CTX.lineWidth = 2;
-                const gridSize = 120;
-                for (let x = 0; x < MAP_SIZE; x += gridSize) {
-                    CTX.beginPath();
-                    CTX.moveTo(x, 0);
-                    CTX.lineTo(x, MAP_SIZE);
-                    CTX.stroke();
-                }
-                for (let y = 0; y < MAP_SIZE; y += gridSize) {
-                    CTX.beginPath();
-                    CTX.moveTo(0, y);
-                    CTX.lineTo(MAP_SIZE, y);
-                    CTX.stroke();
-                }
-
-                // Red Outer Barriers
-                CTX.strokeStyle = '#ef4444';
-                CTX.lineWidth = 16;
-                CTX.strokeRect(80, 80, MAP_SIZE - 160, MAP_SIZE - 160);
-
-                // Render Permanent Skidmarks
-                this.skidmarks.render(CTX);
-
-                // Render Map Props
-                for (let p of this.props) p.draw(CTX);
-
-                // Render Coins
-                for (let c of this.coins) c.draw(CTX);
-
-                // Render Player & Cops
-                this.player.draw(CTX);
-                for (let cop of this.cops) cop.draw(CTX);
-
-                // Render Particle System
-                this.particles.updateAndDraw(CTX);
-
-                this.camera.restoreTransform(CTX);
-            }
-        }
-
-        const game = new GameEngine();
-
-        function resizeCanvas() {
-            CANVAS.width = window.innerWidth;
-            CANVAS.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        // Keyboard Event Listeners
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyW' || e.code === 'ArrowUp') game.inputs.up = true;
-            if (e.code === 'KeyS' || e.code === 'ArrowDown') game.inputs.down = true;
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') game.inputs.left = true;
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') game.inputs.right = true;
-            if (e.code === 'Space') game.inputs.handbrake = true;
-            if (e.code === 'ShiftLeft' || e.code === 'KeyE') game.inputs.nitro = true;
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW' || e.code === 'ArrowUp') game.inputs.up = false;
-            if (e.code === 'KeyS' || e.code === 'ArrowDown') game.inputs.down = false;
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') game.inputs.left = false;
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') game.inputs.right = false;
-            if (e.code === 'Space') game.inputs.handbrake = false;
-            if (e.code === 'ShiftLeft' || e.code === 'KeyE') game.inputs.nitro = false;
-        });
-
-        // Mobile Touch Button Listeners
-        function bindTouchBtn(id, keyProp) {
-            const btn = document.getElementById(id);
-            if (!btn) return;
-            const start = (e) => { e.preventDefault(); game.inputs[keyProp] = true; btn.classList.add('active'); };
-            const end = (e) => { e.preventDefault(); game.inputs[keyProp] = false; btn.classList.remove('active'); };
-            btn.addEventListener('touchstart', start);
-            btn.addEventListener('touchend', end);
-            btn.addEventListener('mousedown', start);
-            btn.addEventListener('mouseup', end);
-        }
-
-        bindTouchBtn('btnTouchLeft', 'left');
-        bindTouchBtn('btnTouchRight', 'right');
-        bindTouchBtn('btnTouchGas', 'up');
-        bindTouchBtn('btnTouchBrake', 'down');
-        bindTouchBtn('btnTouchDrift', 'handbrake');
-        bindTouchBtn('btnTouchNitro', 'nitro');
-
-        function updateMenuData() {
-            document.getElementById('menuHighScore').innerText = saveData.highScore;
-            document.getElementById('menuTotalCoins').innerText = `$${saveData.coins}`;
-            document.getElementById('garageCashDisplay').innerText = `$${saveData.coins}`;
-        }
-
-        // Render Garage Vehicles
-        function renderGarageList() {
-            const container = document.getElementById('carListContainer');
-            container.innerHTML = '';
-
-            CAR_CATALOG.forEach((car, index) => {
-                const isUnlocked = saveData.unlockedCars[index];
-                const isSelected = saveData.selectedCar === index;
-
-                const card = document.createElement('div');
-                card.className = `p-4 rounded-2xl border cursor-pointer transition flex justify-between items-center ${isSelected ? 'bg-cyan-950/40 border-cyan-400 neon-border-cyan' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`;
-                card.onclick = () => selectGarageCar(index);
-
-                card.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black font-orbitron text-lg" style="background: ${car.color}; color: #0f172a;">
-                            🏎️
+                    card.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black font-orbitron text-lg" style="background: ${car.color}; color: #0f172a;">
+                                🏎️
+                            </div>
+                            <div>
+                                <h4 class="font-bold font-orbitron text-white text-sm md:text-base">${car.name}</h4>
+                                <p class="text-xs text-slate-400">${isUnlocked ? 'UNLOCKED' : `$${car.price}`}</p>
+                            </div>
                         </div>
                         <div>
-                            <h4 class="font-bold font-orbitron text-white text-sm md:text-base">${car.name}</h4>
-                            <p class="text-xs text-slate-400">${isUnlocked ? 'UNLOCKED' : `$${car.price}`}</p>
+                            ${isSelected ? '<span class="px-3 py-1 bg-cyan-500 text-slate-950 font-black font-orbitron text-xs rounded-full">EQUIPPED</span>' : (isUnlocked ? '<span class="text-xs font-bold text-slate-400">SELECT</span>' : '<span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold font-orbitron text-xs rounded-full">BUY</span>')}
                         </div>
-                    </div>
-                    <div>
-                        ${isSelected ? '<span class="px-3 py-1 bg-cyan-500 text-slate-950 font-black font-orbitron text-xs rounded-full">EQUIPPED</span>' : (isUnlocked ? '<span class="text-xs font-bold text-slate-400">SELECT</span>' : '<span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold font-orbitron text-xs rounded-full">BUY</span>')}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        let tempSelectedCar = saveData.selectedCar || 0;
-
-        function selectGarageCar(index) {
-            tempSelectedCar = index;
-            const car = CAR_CATALOG[index];
-
-            document.getElementById('selectedCarName').innerText = car.name;
-            document.getElementById('selectedCarDesc').innerText = car.desc;
-
-            // Stat Bars
-            document.getElementById('statSpeedVal').innerText = `${Math.floor(car.topSpeed * 12)} KM/H`;
-            document.getElementById('statSpeedBar').style.width = `${(car.topSpeed / 16) * 100}%`;
-
-            document.getElementById('statDriftVal').innerText = car.driftGrip < 0.90 ? 'HIGH' : 'MEDIUM';
-            document.getElementById('statDriftBar').style.width = `${(1.0 - car.driftGrip) * 500}%`;
-
-            document.getElementById('statArmorVal').innerText = `${car.maxHealth} HP`;
-            document.getElementById('statArmorBar').style.width = `${(car.maxHealth / 200) * 100}%`;
-
-            document.getElementById('statNitroVal').innerText = `${car.nitroMax.toFixed(1)} SEC`;
-            document.getElementById('statNitroBar').style.width = `${(car.nitroMax / 5.0) * 100}%`;
-
-            const isUnlocked = saveData.unlockedCars[index];
-            const btn = document.getElementById('btnSelectOrBuyCar');
-
-            if (isUnlocked) {
-                btn.innerText = 'SELECT VEHICLE';
-                btn.className = 'w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
-            } else {
-                btn.innerText = `BUY VEHICLE ($${car.price})`;
-                btn.className = 'w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
+                    `;
+                    container.appendChild(card);
+                });
             }
 
-            renderGarageList();
-        }
+            let tempSelectedCar = saveData.selectedCar || 0;
 
-        // Modal Button Handlers
-        document.getElementById('btnStartGame').onclick = () => game.startNewGame();
-        document.getElementById('btnRetry').onclick = () => game.startNewGame();
-        document.getElementById('btnGoMenu').onclick = () => {
-            game.state = 'MENU';
-            document.getElementById('gameOverModal').classList.add('hidden');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            updateMenuData();
-        };
+            function selectGarageCar(index) {
+                tempSelectedCar = index;
+                const car = CAR_CATALOG[index];
 
-        document.getElementById('btnOpenGarage').onclick = () => {
-            updateMenuData();
-            selectGarageCar(saveData.selectedCar || 0);
-            document.getElementById('garageModal').classList.remove('hidden');
-        };
-        document.getElementById('btnCloseGarage').onclick = () => document.getElementById('garageModal').classList.add('hidden');
+                document.getElementById('selectedCarName').innerText = car.name;
+                document.getElementById('selectedCarDesc').innerText = car.desc;
 
-        document.getElementById('btnHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.remove('hidden');
-        document.getElementById('btnCloseHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
-        document.getElementById('btnGotIt').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
+                // Stat Bars
+                document.getElementById('statSpeedVal').innerText = `${Math.floor(car.topSpeed * 12)} KM/H`;
+                document.getElementById('statSpeedBar').style.width = `${(car.topSpeed / 16) * 100}%`;
 
-        document.getElementById('btnSelectOrBuyCar').onclick = () => {
-            const car = CAR_CATALOG[tempSelectedCar];
-            const isUnlocked = saveData.unlockedCars[tempSelectedCar];
+                document.getElementById('statDriftVal').innerText = car.driftGrip < 0.90 ? 'HIGH' : 'MEDIUM';
+                document.getElementById('statDriftBar').style.width = `${(1.0 - car.driftGrip) * 500}%`;
 
-            if (isUnlocked) {
-                saveData.selectedCar = tempSelectedCar;
-                saveGame();
-                selectGarageCar(tempSelectedCar);
-            } else {
-                if (saveData.coins >= car.price) {
-                    saveData.coins -= car.price;
-                    saveData.unlockedCars[tempSelectedCar] = true;
+                document.getElementById('statArmorVal').innerText = `${car.maxHealth} HP`;
+                document.getElementById('statArmorBar').style.width = `${(car.maxHealth / 200) * 100}%`;
+
+                document.getElementById('statNitroVal').innerText = `${car.nitroMax.toFixed(1)} SEC`;
+                document.getElementById('statNitroBar').style.width = `${(car.nitroMax / 5.0) * 100}%`;
+
+                const isUnlocked = saveData.unlockedCars[index];
+                const btn = document.getElementById('btnSelectOrBuyCar');
+
+                if (isUnlocked) {
+                    btn.innerText = 'SELECT VEHICLE';
+                    btn.className = 'w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
+                } else {
+                    btn.innerText = `BUY VEHICLE ($${car.price})`;
+                    btn.className = 'w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
+                }
+
+                renderGarageList();
+            }
+
+            // Modal Button Handlers
+            document.getElementById('btnStartGame').onclick = () => game.startNewGame();
+            document.getElementById('btnRetry').onclick = () => game.startNewGame();
+            document.getElementById('btnGoMenu').onclick = () => {
+                game.state = 'MENU';
+                document.getElementById('gameOverModal').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                updateMenuData();
+            };
+
+            document.getElementById('btnOpenGarage').onclick = () => {
+                updateMenuData();
+                selectGarageCar(saveData.selectedCar || 0);
+                document.getElementById('garageModal').classList.remove('hidden');
+            };
+            document.getElementById('btnCloseGarage').onclick = () => document.getElementById('garageModal').classList.add('hidden');
+
+            document.getElementById('btnHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.remove('hidden');
+            document.getElementById('btnCloseHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
+            document.getElementById('btnGotIt').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
+
+            document.getElementById('btnSelectOrBuyCar').onclick = () => {
+                const car = CAR_CATALOG[tempSelectedCar];
+                const isUnlocked = saveData.unlockedCars[tempSelectedCar];
+
+                if (isUnlocked) {
                     saveData.selectedCar = tempSelectedCar;
                     saveGame();
-                    updateMenuData();
                     selectGarageCar(tempSelectedCar);
+                } else {
+                    if (saveData.coins >= car.price) {
+                        saveData.coins -= car.price;
+                        saveData.unlockedCars[tempSelectedCar] = true;
+                        saveData.selectedCar = tempSelectedCar;
+                        saveGame();
+                        updateMenuData();
+                        selectGarageCar(tempSelectedCar);
+                    }
                 }
+            };
+
+            // Upgrade Buttons
+            document.getElementById('btnUpgradeEngine').onclick = () => {
+                if (saveData.coins >= 500) {
+                    saveData.coins -= 500;
+                    saveData.upgrades.engine = (saveData.upgrades.engine || 0) + 1;
+                    saveGame();
+                    updateMenuData();
+                }
+            };
+
+            document.getElementById('btnUpgradeArmor').onclick = () => {
+                if (saveData.coins >= 500) {
+                    saveData.coins -= 500;
+                    saveData.upgrades.armor = (saveData.upgrades.armor || 0) + 1;
+                    saveGame();
+                    updateMenuData();
+                }
+            };
+
+            // Main Animation Loop
+            updateMenuData();
+
+            function gameLoop() {
+                game.update();
+                game.render();
+                requestAnimationFrame(gameLoop);
             }
-        };
 
-        // Upgrade Buttons
-        document.getElementById('btnUpgradeEngine').onclick = () => {
-            if (saveData.coins >= 500) {
-                saveData.coins -= 500;
-                saveData.upgrades.engine = (saveData.upgrades.engine || 0) + 1;
-                saveGame();
-                updateMenuData();
-            }
-        };
-
-        document.getElementById('btnUpgradeArmor').onclick = () => {
-            if (saveData.coins >= 500) {
-                saveData.coins -= 500;
-                saveData.upgrades.armor = (saveData.upgrades.armor || 0) + 1;
-                saveGame();
-                updateMenuData();
-            }
-        };
-
-        // Main Animation Loop
-        updateMenuData();
-
-        function gameLoop() {
-            game.update();
-            game.render();
             requestAnimationFrame(gameLoop);
-        }
-
-        requestAnimationFrame(gameLoop);
-    </script>
-</body>
+        </script>
+    </body>
 </html>
