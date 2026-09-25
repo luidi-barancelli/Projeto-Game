@@ -8,6 +8,16 @@ const CANVAS = document.getElementById('gameCanvas');
             const COIN_DESPAWN_RADIUS = 2200;
             const MAP_SIZE = 3600;
 
+            const PLAYER_SIZE_SCALE = 1.5;
+            const COP_SIZE_SCALE = 1.3;
+
+            const COIN_NITRO_RESTORE = 0.5;
+
+            const HEALTH_PICKUP_HEAL_AMOUNT = 30;
+            const HEALTH_PICKUP_TARGET_COUNT = 4;
+            const HEALTH_PICKUP_SPAWN_RADIUS = 1500;
+            const HEALTH_PICKUP_DESPAWN_RADIUS = 2200;
+
             // Audio Context Synthesizer Engine
             class AudioEngine {
                 constructor() {
@@ -292,10 +302,9 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.angle = 0;
                     this.vx = 0;
                     this.vy = 0;
-                    this.width = 44;
-                    this.height = 22;
+                    this.width = 44 * PLAYER_SIZE_SCALE;
+                    this.height = 22 * PLAYER_SIZE_SCALE;
 
-                    // Base parameters from config
                     this.config = carConfig;
                     this.topSpeed = carConfig.topSpeed;
                     this.accel = carConfig.accel;
@@ -490,6 +499,9 @@ const CANVAS = document.getElementById('gameCanvas');
                     }
 
                     super(x, y, config);
+
+                    this.width = 44 * COP_SIZE_SCALE;
+                    this.height = 22 * COP_SIZE_SCALE;
                     this.copType = copType;
                     this.sirenTimer = 0;
                 }
@@ -611,6 +623,37 @@ const CANVAS = document.getElementById('gameCanvas');
                 }
             }
 
+            class HealthPickup {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.radius = 12;
+                    this.bobble = Math.random() * 10;
+                }
+            
+                draw(ctx) {
+                    this.bobble += 0.08;
+                    const offset = Math.sin(this.bobble) * 3;
+            
+                    ctx.save();
+                    ctx.translate(this.x, this.y + offset);
+            
+                    ctx.fillStyle = '#22c55e';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#bbf7d0';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+            
+                    ctx.fillStyle = '#052e16';
+                    ctx.fillRect(-6, -1.5, 12, 3);
+                    ctx.fillRect(-1.5, -6, 3, 12);
+            
+                    ctx.restore();
+                }
+            }
+
             class Camera {
                 constructor() {
                     this.x = 0;
@@ -712,6 +755,20 @@ const CANVAS = document.getElementById('gameCanvas');
                     }
                 }
 
+                maintainHealthPickups() {
+                    if (!this.player) return;
+                    this.healthPickups = this.healthPickups.filter(h =>
+                        Math.hypot(h.x - this.player.x, h.y - this.player.y) < HEALTH_PICKUP_DESPAWN_RADIUS);
+                
+                    while (this.healthPickups.length < HEALTH_PICKUP_TARGET_COUNT) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = 200 + Math.random() * (HEALTH_PICKUP_SPAWN_RADIUS - 200);
+                        const x = this.player.x + Math.cos(angle) * dist;
+                        const y = this.player.y + Math.sin(angle) * dist;
+                        this.healthPickups.push(new HealthPickup(x, y));
+                    }
+                }
+
                 startNewGame() {
                     audio.init();
                 
@@ -729,6 +786,7 @@ const CANVAS = document.getElementById('gameCanvas');
                 
                     this.cops = [];
                     this.coins = [];
+                    this.healthPickups = [];
                     this.props = [];
                     this.skidmarks.clear();
                     this.camera.x = 0;
@@ -741,14 +799,13 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.copSpawnTimer = 0;
                     this.driftComboScore = 0;
                     this.driftMultiplier = 1.0;
-                
-                    // Initial Cop Spawns
+
                     this.spawnCop('STANDARD');
                     this.spawnCop('STANDARD');
                 
-                    // Populate the world with an initial batch of props & coins around the player
                     this.maintainProps();
                     this.maintainCoins();
+                    this.maintainHealthPickups();
                 
                     this.state = 'PLAYING';
                 
@@ -787,6 +844,7 @@ const CANVAS = document.getElementById('gameCanvas');
 
                     this.maintainProps();
                     this.maintainCoins();
+                    this.maintainHealthPickups();
 
                     // Drift Combo Logic
                     if (this.player.isDrifting) {
@@ -862,8 +920,19 @@ const CANVAS = document.getElementById('gameCanvas');
                         if (Math.hypot(coin.x - this.player.x, coin.y - this.player.y) < 32) {
                             this.coinsEarnedSession += coin.value;
                             this.score += 100;
+                            this.player.nitroEnergy = Math.min(this.player.nitroMax, this.player.nitroEnergy + COIN_NITRO_RESTORE);
                             audio.playCoin();
                             this.coins.splice(i, 1);
+                        }
+                    }
+
+                    // Health Pickup Collection
+                    for (let i = this.healthPickups.length - 1; i >= 0; i--) {
+                        const pickup = this.healthPickups[i];
+                        if (Math.hypot(pickup.x - this.player.x, pickup.y - this.player.y) < 32) {
+                            this.player.health = Math.min(this.player.maxHealth, this.player.health + HEALTH_PICKUP_HEAL_AMOUNT);
+                            audio.playCoin();
+                            this.healthPickups.splice(i, 1);
                         }
                     }
 
@@ -984,6 +1053,8 @@ const CANVAS = document.getElementById('gameCanvas');
 
                     // Render Coins
                     for (let c of this.coins) c.draw(CTX);
+
+                    for (let h of this.healthPickups) h.draw(CTX);
 
                     // Render Player & Cops
                     this.player.draw(CTX);
