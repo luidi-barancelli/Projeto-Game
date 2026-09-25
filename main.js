@@ -1,8 +1,12 @@
 const CANVAS = document.getElementById('gameCanvas');
             const CTX = CANVAS.getContext('2d');
-
-            // Map Boundaries
-            const MAP_SIZE = 3600; // 3600x3600 world boundary
+            const PROP_TARGET_COUNT = 90;   
+            const PROP_SPAWN_RADIUS = 1600;    
+            const PROP_DESPAWN_RADIUS = 2400;  
+            const COIN_TARGET_COUNT = 20;    
+            const COIN_SPAWN_RADIUS = 1400;
+            const COIN_DESPAWN_RADIUS = 2200;
+            const MAP_SIZE = 3600;
 
             // Audio Context Synthesizer Engine
             class AudioEngine {
@@ -248,32 +252,36 @@ const CANVAS = document.getElementById('gameCanvas');
             }
 
             class SkidmarkManager {
+                // Stores skid marks as world-space line segments instead of a fixed-size
+                // canvas, so they keep working no matter how far the player drives.
                 constructor() {
-                    this.canvas = document.createElement('canvas');
-                    this.canvas.width = MAP_SIZE;
-                    this.canvas.height = MAP_SIZE;
-                    this.ctx = this.canvas.getContext('2d');
-                    this.clear();
+                    this.marks = [];
+                    this.maxMarks = 2500; // cap to avoid unbounded memory growth
                 }
-
+            
                 clear() {
-                    this.ctx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
+                    this.marks = [];
                 }
-
+            
                 addSkidLine(p1, p2, alpha = 0.3) {
-                    this.ctx.save();
-                    this.ctx.strokeStyle = `rgba(15, 23, 42, ${alpha})`;
-                    this.ctx.lineWidth = 4;
-                    this.ctx.lineCap = 'round';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(p1.x, p1.y);
-                    this.ctx.lineTo(p2.x, p2.y);
-                    this.ctx.stroke();
-                    this.ctx.restore();
+                    this.marks.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, alpha });
+                    if (this.marks.length > this.maxMarks) {
+                        this.marks.shift();
+                    }
                 }
-
+            
                 render(ctx) {
-                    ctx.drawImage(this.canvas, 0, 0);
+                    ctx.save();
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+                    for (const m of this.marks) {
+                        ctx.strokeStyle = `rgba(15, 23, 42, ${m.alpha})`;
+                        ctx.beginPath();
+                        ctx.moveTo(m.x1, m.y1);
+                        ctx.lineTo(m.x2, m.y2);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
                 }
             }
 
@@ -605,8 +613,8 @@ const CANVAS = document.getElementById('gameCanvas');
 
             class Camera {
                 constructor() {
-                    this.x = MAP_SIZE / 2;
-                    this.y = MAP_SIZE / 2;
+                    this.x = 0;
+                    this.y = 0;
                     this.zoom = 1.0;
                     this.targetZoom = 1.0;
                     this.shake = 0;
@@ -670,39 +678,62 @@ const CANVAS = document.getElementById('gameCanvas');
                         nitro: false
                     };
 
-                    this.initMapProps();
                 }
 
-                initMapProps() {
-                    this.props = [];
-                    // Scatter random barrels/crates around map
-                    for (let i = 0; i < 90; i++) {
-                        const x = 200 + Math.random() * (MAP_SIZE - 400);
-                        const y = 200 + Math.random() * (MAP_SIZE - 400);
+                // Keeps a steady number of barrels/crates near the player, spawning new
+                // ones ahead and dropping old ones that were left far behind.
+                maintainProps() {
+                    if (!this.player) return;
+                    this.props = this.props.filter(p => !p.destroyed &&
+                        Math.hypot(p.x - this.player.x, p.y - this.player.y) < PROP_DESPAWN_RADIUS);
+
+                    while (this.props.length < PROP_TARGET_COUNT) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = 300 + Math.random() * (PROP_SPAWN_RADIUS - 300);
+                        const x = this.player.x + Math.cos(angle) * dist;
+                        const y = this.player.y + Math.sin(angle) * dist;
                         const type = Math.random() > 0.5 ? 'BARREL' : 'CRATE';
                         this.props.push(new MapProp(x, y, type));
                     }
                 }
 
+                // Same idea as maintainProps() but for coin pickups.
+                maintainCoins() {
+                    if (!this.player) return;
+                    this.coins = this.coins.filter(c =>
+                        Math.hypot(c.x - this.player.x, c.y - this.player.y) < COIN_DESPAWN_RADIUS);
+
+                    while (this.coins.length < COIN_TARGET_COUNT) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = 200 + Math.random() * (COIN_SPAWN_RADIUS - 200);
+                        const x = this.player.x + Math.cos(angle) * dist;
+                        const y = this.player.y + Math.sin(angle) * dist;
+                        this.coins.push(new CoinPickup(x, y, 25));
+                    }
+                }
+
                 startNewGame() {
                     audio.init();
-
+                
                     const carConfig = CAR_CATALOG[saveData.selectedCar || 0];
-
+                
                     // Apply Upgrades
                     const upgradedConfig = { ...carConfig };
                     upgradedConfig.topSpeed += (saveData.upgrades.engine || 0) * 0.8;
                     upgradedConfig.accel += (saveData.upgrades.engine || 0) * 0.03;
                     upgradedConfig.maxHealth += (saveData.upgrades.armor || 0) * 25;
-
-                    this.player = new Vehicle(MAP_SIZE / 2, MAP_SIZE / 2, upgradedConfig);
+                
+                    this.player = new Vehicle(0, 0, upgradedConfig);
                     this.player.nitroEnergy = upgradedConfig.nitroMax;
                     this.player.nitroMax = upgradedConfig.nitroMax;
-
+                
                     this.cops = [];
                     this.coins = [];
+                    this.props = [];
                     this.skidmarks.clear();
-
+                    this.camera.x = 0;
+                    this.camera.y = 0;
+                
                     this.score = 0;
                     this.coinsEarnedSession = 0;
                     this.copsWrecked = 0;
@@ -710,36 +741,29 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.copSpawnTimer = 0;
                     this.driftComboScore = 0;
                     this.driftMultiplier = 1.0;
-
-                    // Initial Coy Spawns
+                
+                    // Initial Cop Spawns
                     this.spawnCop('STANDARD');
                     this.spawnCop('STANDARD');
-
-                    // Spawn initial map coins
-                    for (let i = 0; i < 20; i++) {
-                        this.spawnRandomCoin();
-                    }
-
+                
+                    // Populate the world with an initial batch of props & coins around the player
+                    this.maintainProps();
+                    this.maintainCoins();
+                
                     this.state = 'PLAYING';
-
+                
                     document.getElementById('mainMenu').classList.add('hidden');
                     document.getElementById('gameOverModal').classList.add('hidden');
                     document.getElementById('hudOverlay').classList.remove('hidden');
                 }
 
                 spawnCop(type) {
-                    // Spawn cops around map perimeter near player
+                    // Spawn cops in a ring around the player, wherever they currently are
                     const angle = Math.random() * Math.PI * 2;
                     const dist = 900 + Math.random() * 300;
-                    const x = Math.max(100, Math.min(MAP_SIZE - 100, this.player.x + Math.cos(angle) * dist));
-                    const y = Math.max(100, Math.min(MAP_SIZE - 100, this.player.y + Math.sin(angle) * dist));
+                    const x = this.player.x + Math.cos(angle) * dist;
+                    const y = this.player.y + Math.sin(angle) * dist;
                     this.cops.push(new CopVehicle(x, y, type));
-                }
-
-                spawnRandomCoin() {
-                    const x = 200 + Math.random() * (MAP_SIZE - 400);
-                    const y = 200 + Math.random() * (MAP_SIZE - 400);
-                    this.coins.push(new CoinPickup(x, y, 25));
                 }
 
                 update() {
@@ -761,12 +785,8 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.player.updatePhysics(this.inputs);
                     audio.updateEnginePitch(Math.hypot(this.player.vx, this.player.vy) / this.player.topSpeed);
 
-                    // Map Boundary Collisions for Player
-                    if (this.player.x < 100 || this.player.x > MAP_SIZE - 100 || this.player.y < 100 || this.player.y > MAP_SIZE - 100) {
-                        this.player.health -= 0.8;
-                        this.camera.shake = 12;
-                        this.particles.spawnSpark(this.player.x, this.player.y);
-                    }
+                    this.maintainProps();
+                    this.maintainCoins();
 
                     // Drift Combo Logic
                     if (this.player.isDrifting) {
@@ -925,27 +945,36 @@ const CANVAS = document.getElementById('gameCanvas');
                     CTX.fillStyle = '#1e293b';
                     CTX.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
+                    const viewMargin = 200;
+                    const halfW = (CANVAS.width / this.camera.zoom) / 2 + viewMargin;
+                    const halfH = (CANVAS.height / this.camera.zoom) / 2 + viewMargin;
+                    const viewLeft = this.camera.x - halfW;
+                    const viewRight = this.camera.x + halfW;
+                    const viewTop = this.camera.y - halfH;
+                    const viewBottom = this.camera.y + halfH;
+
+                    // Asphalt Ground (covers only the visible area, infinitely follows the camera)
+                    CTX.fillStyle = '#1e293b';
+                    CTX.fillRect(viewLeft, viewTop, viewRight - viewLeft, viewBottom - viewTop);
+
                     // Grid Lines
                     CTX.strokeStyle = '#334155';
                     CTX.lineWidth = 2;
                     const gridSize = 120;
-                    for (let x = 0; x < MAP_SIZE; x += gridSize) {
+                    const startX = Math.floor(viewLeft / gridSize) * gridSize;
+                    const startY = Math.floor(viewTop / gridSize) * gridSize;
+                    for (let x = startX; x < viewRight; x += gridSize) {
                         CTX.beginPath();
-                        CTX.moveTo(x, 0);
-                        CTX.lineTo(x, MAP_SIZE);
+                        CTX.moveTo(x, viewTop);
+                        CTX.lineTo(x, viewBottom);
                         CTX.stroke();
                     }
-                    for (let y = 0; y < MAP_SIZE; y += gridSize) {
+                    for (let y = startY; y < viewBottom; y += gridSize) {
                         CTX.beginPath();
-                        CTX.moveTo(0, y);
-                        CTX.lineTo(MAP_SIZE, y);
+                        CTX.moveTo(viewLeft, y);
+                        CTX.lineTo(viewRight, y);
                         CTX.stroke();
                     }
-
-                    // Red Outer Barriers
-                    CTX.strokeStyle = '#ef4444';
-                    CTX.lineWidth = 16;
-                    CTX.strokeRect(80, 80, MAP_SIZE - 160, MAP_SIZE - 160);
 
                     // Render Permanent Skidmarks
                     this.skidmarks.render(CTX);
