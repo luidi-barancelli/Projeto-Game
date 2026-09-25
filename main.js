@@ -18,6 +18,16 @@ const CANVAS = document.getElementById('gameCanvas');
             const HEALTH_PICKUP_SPAWN_RADIUS = 1500;
             const HEALTH_PICKUP_DESPAWN_RADIUS = 2200;
 
+            const COIN_ORB_SCALE = 1.2;
+            const HEALTH_ORB_SCALE = 1.2;
+
+            const DRIFT_HANDBRAKE_GRIP = 0.62;
+            const DRIFT_TURN_BOOST = 1.6;
+            const DRIFT_SMOKE_COUNT = 3;
+            const DRIFT_CAMERA_SHAKE = 4;
+            const SKIDMARK_WIDTH = 6;
+            const SKIDMARK_ALPHA = 0.45;
+
             // Audio Context Synthesizer Engine
             class AudioEngine {
                 constructor() {
@@ -282,7 +292,7 @@ const CANVAS = document.getElementById('gameCanvas');
             
                 render(ctx) {
                     ctx.save();
-                    ctx.lineWidth = 4;
+                    ctx.lineWidth = SKIDMARK_WIDTH;
                     ctx.lineCap = 'round';
                     for (const m of this.marks) {
                         ctx.strokeStyle = `rgba(15, 23, 42, ${m.alpha})`;
@@ -357,7 +367,7 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.isHandbraking = inputs.handbrake;
                     if (currentSpeed > 0.5) {
                         const dir = currentSpeed > 0 ? 1 : -1;
-                        const turnMult = this.isHandbraking ? 1.4 : 1.0;
+                        const turnMult = this.isHandbraking ? DRIFT_TURN_BOOST : 1.0;
                         if (inputs.left) this.angle -= this.handling * turnMult * dir;
                         if (inputs.right) this.angle += this.handling * turnMult * dir;
                     }
@@ -370,7 +380,7 @@ const CANVAS = document.getElementById('gameCanvas');
                     let lateralVel = this.vx * rightDir.x + this.vy * rightDir.y;
 
                     // Drift grip physics calculation
-                    let grip = this.isHandbraking ? 0.78 : (this.driftGrip || 0.92);
+                    let grip = this.isHandbraking ? DRIFT_HANDBRAKE_GRIP : (this.driftGrip || 0.92);
                     lateralVel *= grip;
                     forwardVel *= 0.985; // Rolling drag
 
@@ -400,13 +410,17 @@ const CANVAS = document.getElementById('gameCanvas');
 
                     if (this.isDrifting && game) {
                         if (this.lastRearLeft && this.lastRearRight) {
-                            game.skidmarks.addSkidLine(this.lastRearLeft, rl, 0.35);
-                            game.skidmarks.addSkidLine(this.lastRearRight, rr, 0.35);
+                            game.skidmarks.addSkidLine(this.lastRearLeft, rl, SKIDMARK_ALPHA);
+                            game.skidmarks.addSkidLine(this.lastRearRight, rr, SKIDMARK_ALPHA);
                         }
                         // Spawn smoke particles
-                        game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2);
-                        game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2);
-
+                        for (let i = 0; i < DRIFT_SMOKE_COUNT; i++) {
+                            game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2);
+                            game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2);
+                        }
+                    
+                        game.camera.shake = Math.max(game.camera.shake, DRIFT_CAMERA_SHAKE);
+                    
                         if (Math.random() < 0.2) audio.playSkidSound();
                     }
 
@@ -593,7 +607,7 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.x = x;
                     this.y = y;
                     this.value = value;
-                    this.radius = 10;
+                    this.radius = 10 * COIN_ORB_SCALE;
                     this.bobble = Math.random() * 10;
                 }
 
@@ -627,7 +641,7 @@ const CANVAS = document.getElementById('gameCanvas');
                 constructor(x, y) {
                     this.x = x;
                     this.y = y;
-                    this.radius = 12;
+                    this.radius = 12 * HEALTH_ORB_SCALE;
                     this.bobble = Math.random() * 10;
                 }
             
