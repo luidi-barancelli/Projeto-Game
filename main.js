@@ -1,9 +1,10 @@
 const CANVAS = document.getElementById('gameCanvas');
             const CTX = CANVAS.getContext('2d');
-            const PROP_TARGET_COUNT = 90;   
+            const ITEM_SPAWN_MULTIPLIER = 0.8;  // 1.0 = quantidade original | 0.8 = 20% menos itens (não afeta o kit de vida)
+            const PROP_TARGET_COUNT = Math.round(90 * ITEM_SPAWN_MULTIPLIER); 
             const PROP_SPAWN_RADIUS = 1600;    
             const PROP_DESPAWN_RADIUS = 2400;  
-            const COIN_TARGET_COUNT = 20;    
+            const COIN_TARGET_COUNT = Math.round(20 * ITEM_SPAWN_MULTIPLIER);  
             const COIN_SPAWN_RADIUS = 1400;
             const COIN_DESPAWN_RADIUS = 2200;
             const MAP_SIZE = 3600;
@@ -26,8 +27,9 @@ const CANVAS = document.getElementById('gameCanvas');
             const HEALTH_PICKUP_SPAWN_RADIUS = 1500;
             const HEALTH_PICKUP_DESPAWN_RADIUS = 2200;
 
-            const COIN_ORB_SCALE = 1.2;
-            const HEALTH_ORB_SCALE = 1.2;
+            const COIN_ORB_SCALE = 1.5;
+            const HEALTH_ORB_SCALE = 2.0;
+            const PROP_SIZE_SCALE = 1.25; 
 
             const DRIFT_HANDBRAKE_GRIP = 0.62;
             const DRIFT_TURN_BOOST = 1.6;
@@ -63,7 +65,7 @@ const CANVAS = document.getElementById('gameCanvas');
                         this.engineOsc.start();
                     } catch(e) {}
                 }
-
+                // linha auruda 67n 42 for two sixseven
                 updateEnginePitch(speedRatio) {
                     if (!this.ctx || !this.engineOsc) return;
                     const freq = 30 + speedRatio * 160;
@@ -895,40 +897,288 @@ const CANVAS = document.getElementById('gameCanvas');
                 }
             }
 
+            // ===== ÍCONES DOS ITENS (desenhados em vetor, sem imagens) =====
+            const ITEM_SPRITES = {};
+            const SPRITE_RES = 2; // qualidade dos ícones (2 = nítido também em telas retina)
+
+            function makeSprite(radius, drawFn) {
+                const size = Math.ceil(radius * 2 * 1.3); // 30% de margem para borda e sombra
+                const c = document.createElement('canvas');
+                c.width = c.height = Math.ceil(size * SPRITE_RES);
+                const g = c.getContext('2d');
+                g.scale(SPRITE_RES, SPRITE_RES);
+                g.translate(size / 2, size / 2);
+                drawFn(g, radius);
+                c.logicalSize = size;
+                return c;
+            }
+
+            function roundRectPath(g, x, y, w, h, rad) {
+                g.beginPath();
+                g.moveTo(x + rad, y);
+                g.arcTo(x + w, y, x + w, y + h, rad);
+                g.arcTo(x + w, y + h, x, y + h, rad);
+                g.arcTo(x, y + h, x, y, rad);
+                g.arcTo(x, y, x + w, y, rad);
+                g.closePath();
+            }
+
+            // Moeda dourada com "$"
+            function drawCoinIcon(g, r) {
+                const rim = g.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+                rim.addColorStop(0, '#fef3c7');
+                rim.addColorStop(0.35, '#fcd34d');
+                rim.addColorStop(0.8, '#f59e0b');
+                rim.addColorStop(1, '#b45309');
+                g.fillStyle = rim;
+                g.beginPath();
+                g.arc(0, 0, r, 0, Math.PI * 2);
+                g.fill();
+                g.strokeStyle = '#92400e';
+                g.lineWidth = r * 0.1;
+                g.stroke();
+
+                const face = g.createLinearGradient(-r, -r, r, r);
+                face.addColorStop(0, '#fbbf24');
+                face.addColorStop(1, '#d97706');
+                g.fillStyle = face;
+                g.beginPath();
+                g.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+                g.fill();
+                g.strokeStyle = '#b45309';
+                g.lineWidth = r * 0.07;
+                g.stroke();
+
+                g.font = `900 ${r * 1.05}px Arial, sans-serif`;
+                g.textAlign = 'center';
+                g.textBaseline = 'middle';
+                g.fillStyle = '#fde68a';
+                g.fillText('$', r * 0.03, r * 0.1);
+                g.fillStyle = '#78350f';
+                g.fillText('$', 0, r * 0.05);
+
+                g.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+                g.lineWidth = r * 0.12;
+                g.lineCap = 'round';
+                g.beginPath();
+                g.arc(0, 0, r * 0.84, Math.PI * 1.1, Math.PI * 1.45);
+                g.stroke();
+            }
+
+            // Kit médico: caixa branca com cruz vermelha
+            function drawHealthIcon(g, r) {
+                const w = r * 1.7, h = r * 1.35;
+                const x0 = -w / 2, y0 = -h / 2 + r * 0.12;
+
+                // alça
+                g.strokeStyle = '#64748b';
+                g.lineWidth = r * 0.14;
+                g.lineJoin = 'round';
+                g.lineCap = 'round';
+                g.beginPath();
+                g.moveTo(-r * 0.3, y0 + r * 0.05);
+                g.lineTo(-r * 0.3, y0 - r * 0.25);
+                g.lineTo(r * 0.3, y0 - r * 0.25);
+                g.lineTo(r * 0.3, y0 + r * 0.05);
+                g.stroke();
+
+                // caixa
+                const body = g.createLinearGradient(0, y0, 0, y0 + h);
+                body.addColorStop(0, '#ffffff');
+                body.addColorStop(1, '#cbd5e1');
+                g.fillStyle = body;
+                roundRectPath(g, x0, y0, w, h, r * 0.28);
+                g.fill();
+                g.strokeStyle = '#64748b';
+                g.lineWidth = r * 0.08;
+                g.stroke();
+
+                // cruz
+                const cy = y0 + h / 2;
+                const arm = r * 0.62, t = r * 0.3;
+                const cross = g.createLinearGradient(0, cy - arm / 2, 0, cy + arm / 2);
+                cross.addColorStop(0, '#f87171');
+                cross.addColorStop(1, '#dc2626');
+                g.fillStyle = cross;
+                g.strokeStyle = '#991b1b';
+                g.lineWidth = r * 0.05;
+                const a = arm / 2, b = t / 2;
+                g.beginPath();
+                g.moveTo(-b, cy - a); g.lineTo(b, cy - a); g.lineTo(b, cy - b);
+                g.lineTo(a, cy - b); g.lineTo(a, cy + b); g.lineTo(b, cy + b);
+                g.lineTo(b, cy + a); g.lineTo(-b, cy + a); g.lineTo(-b, cy + b);
+                g.lineTo(-a, cy + b); g.lineTo(-a, cy - b); g.lineTo(-b, cy - b);
+                g.closePath();
+                g.lineJoin = 'round';
+                g.fill();
+                g.stroke();
+
+                // brilho
+                g.fillStyle = 'rgba(255, 255, 255, 0.55)';
+                roundRectPath(g, x0 + r * 0.12, y0 + r * 0.1, w - r * 0.24, r * 0.12, r * 0.06);
+                g.fill();
+            }
+
+            // Barril vermelho visto de cima, com símbolo de perigo
+            function drawBarrelIcon(g, r) {
+                const R = r * 0.88;
+
+                const sh = g.createRadialGradient(r * 0.15, r * 0.2, R * 0.3, r * 0.15, r * 0.2, R * 1.2);
+                sh.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+                sh.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                g.fillStyle = sh;
+                g.beginPath();
+                g.arc(r * 0.15, r * 0.2, R * 1.2, 0, Math.PI * 2);
+                g.fill();
+
+                const body = g.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.1, 0, 0, R);
+                body.addColorStop(0, '#fca5a5');
+                body.addColorStop(0.35, '#ef4444');
+                body.addColorStop(0.8, '#b91c1c');
+                body.addColorStop(1, '#7f1d1d');
+                g.fillStyle = body;
+                g.beginPath();
+                g.arc(0, 0, R, 0, Math.PI * 2);
+                g.fill();
+                g.strokeStyle = '#450a0a';
+                g.lineWidth = r * 0.09;
+                g.stroke();
+
+                g.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                g.lineWidth = r * 0.07;
+                g.beginPath();
+                g.arc(0, 0, R * 0.8, 0, Math.PI * 2);
+                g.stroke();
+                g.beginPath();
+                g.arc(0, 0, R * 0.5, 0, Math.PI * 2);
+                g.stroke();
+
+                // triângulo de perigo
+                g.fillStyle = '#fde047';
+                g.strokeStyle = '#422006';
+                g.lineWidth = r * 0.07;
+                g.lineJoin = 'round';
+                g.beginPath();
+                g.moveTo(0, -R * 0.4);
+                g.lineTo(R * 0.38, R * 0.28);
+                g.lineTo(-R * 0.38, R * 0.28);
+                g.closePath();
+                g.fill();
+                g.stroke();
+                g.strokeStyle = '#422006';
+                g.lineCap = 'round';
+                g.lineWidth = r * 0.08;
+                g.beginPath();
+                g.moveTo(0, -R * 0.14);
+                g.lineTo(0, R * 0.06);
+                g.stroke();
+                g.fillStyle = '#422006';
+                g.beginPath();
+                g.arc(0, R * 0.17, r * 0.05, 0, Math.PI * 2);
+                g.fill();
+
+                g.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                g.lineWidth = r * 0.1;
+                g.beginPath();
+                g.arc(0, 0, R * 0.9, Math.PI * 1.1, Math.PI * 1.4);
+                g.stroke();
+            }
+
+            // Caixa de madeira vista de cima
+            function drawCrateIcon(g, r) {
+                const S = r * 0.84;
+
+                g.fillStyle = 'rgba(0, 0, 0, 0.12)';
+                for (let i = 3; i >= 1; i--) {
+                    roundRectPath(g, -S + r * 0.1 - i * r * 0.04, -S + r * 0.16 - i * r * 0.04, S * 2 + i * r * 0.08, S * 2 + i * r * 0.08, r * 0.15);
+                    g.fill();
+                }
+
+                const wood = g.createLinearGradient(-S, -S, S, S);
+                wood.addColorStop(0, '#f59e0b');
+                wood.addColorStop(1, '#b45309');
+                g.fillStyle = wood;
+                roundRectPath(g, -S, -S, S * 2, S * 2, r * 0.12);
+                g.fill();
+                g.strokeStyle = '#78350f';
+                g.lineWidth = r * 0.1;
+                g.stroke();
+
+                // tábuas
+                g.strokeStyle = 'rgba(69, 26, 3, 0.5)';
+                g.lineWidth = r * 0.06;
+                g.beginPath();
+                g.moveTo(-S, -S / 3); g.lineTo(S, -S / 3);
+                g.moveTo(-S, S / 3); g.lineTo(S, S / 3);
+                g.stroke();
+
+                // moldura + travessas em X
+                const inset = S * 0.72;
+                g.strokeStyle = 'rgba(120, 53, 15, 0.9)';
+                g.lineWidth = r * 0.14;
+                g.lineJoin = 'round';
+                g.beginPath();
+                g.rect(-inset, -inset, inset * 2, inset * 2);
+                g.moveTo(-inset, -inset); g.lineTo(inset, inset);
+                g.moveTo(inset, -inset); g.lineTo(-inset, inset);
+                g.stroke();
+                g.strokeStyle = 'rgba(253, 230, 138, 0.35)';
+                g.lineWidth = r * 0.05;
+                g.stroke();
+
+                // pregos
+                for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+                    g.fillStyle = '#451a03';
+                    g.beginPath();
+                    g.arc(sx * S * 0.72, sy * S * 0.72, r * 0.08, 0, Math.PI * 2);
+                    g.fill();
+                    g.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    g.beginPath();
+                    g.arc(sx * S * 0.72 - r * 0.02, sy * S * 0.72 - r * 0.02, r * 0.025, 0, Math.PI * 2);
+                    g.fill();
+                }
+
+                // brilho na borda
+                g.strokeStyle = 'rgba(255, 237, 160, 0.55)';
+                g.lineWidth = r * 0.06;
+                g.lineCap = 'round';
+                g.beginPath();
+                g.moveTo(-S + r * 0.08, S - r * 0.2);
+                g.lineTo(-S + r * 0.08, -S + r * 0.08);
+                g.lineTo(S - r * 0.2, -S + r * 0.08);
+                g.stroke();
+            }
+
+            // Cria o sprite do item na primeira vez que ele é usado e reaproveita nas próximas
+            function getSprite(key, radius, drawFn) {
+                if (!ITEM_SPRITES[key]) ITEM_SPRITES[key] = makeSprite(radius, drawFn);
+                return ITEM_SPRITES[key];
+            }
+
             class MapProp {
                 constructor(x, y, type) {
                     this.x = x;
                     this.y = y;
                     this.type = type; // 'BARREL' or 'CRATE'
-                    this.radius = type === 'BARREL' ? 14 : 18;
+                    this.radius = (type === 'BARREL' ? 14 : 18) * PROP_SIZE_SCALE;
+                    this.rotation = type === 'CRATE' ? (Math.random() - 0.5) * 0.6 : 0;
                     this.destroyed = false;
                 }
-
+            
                 draw(ctx) {
                     if (this.destroyed) return;
+                    const s = this.type === 'BARREL'
+                        ? getSprite('BARREL', this.radius, drawBarrelIcon)
+                        : getSprite('CRATE', this.radius, drawCrateIcon);
+            
                     ctx.save();
                     ctx.translate(this.x, this.y);
-
-                    if (this.type === 'BARREL') {
-                        ctx.fillStyle = '#ef4444';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.strokeStyle = '#7f1d1d';
-                        ctx.lineWidth = 3;
-                        ctx.stroke();
-                    } else {
-                        ctx.fillStyle = '#d97706';
-                        ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                        ctx.strokeStyle = '#78350f';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-                    }
-
+                    if (this.rotation) ctx.rotate(this.rotation);
+                    ctx.drawImage(s, -s.logicalSize / 2, -s.logicalSize / 2, s.logicalSize, s.logicalSize);
                     ctx.restore();
                 }
             }
-
+            
             class CoinPickup {
                 constructor(x, y, value = 25) {
                     this.x = x;
@@ -937,33 +1187,46 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.radius = 10 * COIN_ORB_SCALE;
                     this.bobble = Math.random() * 10;
                 }
-
+            
                 draw(ctx) {
                     this.bobble += 0.08;
                     const offset = Math.sin(this.bobble) * 3;
-
+                    const s = getSprite('COIN', this.radius, drawCoinIcon);
+            
                     ctx.save();
-                    ctx.translate(this.x, this.y + offset);
-
-                    // Golden Glow
-                    ctx.fillStyle = '#f59e0b';
+                    ctx.translate(this.x, this.y);
+            
+                    // Sombra no chão (diminui quando a moeda sobe)
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.ellipse(0, this.radius * 0.9, this.radius * 0.8 * (1 + offset * 0.04), this.radius * 0.3, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = '#fef08a';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#78350f';
-                    ctx.font = '900 10px Orbitron';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('$', 0, 1);
-
+            
+                    // Moeda girando
+                    const flip = Math.max(0.18, Math.abs(Math.cos(this.bobble * 0.6)));
+                    ctx.translate(0, offset);
+                    ctx.drawImage(s, -s.logicalSize * flip / 2, -s.logicalSize / 2, s.logicalSize * flip, s.logicalSize);
+            
+                    // Brilho que pisca de vez em quando
+                    const twinkle = (Math.sin(this.bobble * 1.5) + 1) / 2;
+                    if (twinkle > 0.85) {
+                        const k = (twinkle - 0.85) / 0.15;
+                        const sx = this.radius * 0.6, sy = -this.radius * 0.6, sr = this.radius * 0.55 * k;
+                        ctx.globalAlpha = k;
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy - sr);
+                        ctx.quadraticCurveTo(sx, sy, sx + sr, sy);
+                        ctx.quadraticCurveTo(sx, sy, sx, sy + sr);
+                        ctx.quadraticCurveTo(sx, sy, sx - sr, sy);
+                        ctx.quadraticCurveTo(sx, sy, sx, sy - sr);
+                        ctx.fill();
+                    }
+            
                     ctx.restore();
                 }
             }
-
+            
             class HealthPickup {
                 constructor(x, y) {
                     this.x = x;
@@ -975,21 +1238,29 @@ const CANVAS = document.getElementById('gameCanvas');
                 draw(ctx) {
                     this.bobble += 0.08;
                     const offset = Math.sin(this.bobble) * 3;
+                    const s = getSprite('HEALTH', this.radius, drawHealthIcon);
             
                     ctx.save();
-                    ctx.translate(this.x, this.y + offset);
+                    ctx.translate(this.x, this.y);
             
-                    ctx.fillStyle = '#22c55e';
+                    // Aura verde pulsando
+                    const pulse = 0.3 + 0.12 * Math.sin(this.bobble * 1.2);
+                    const glow = ctx.createRadialGradient(0, 0, this.radius * 0.3, 0, 0, this.radius * 2.3);
+                    glow.addColorStop(0, `rgba(74, 222, 128, ${pulse})`);
+                    glow.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                    ctx.fillStyle = glow;
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.arc(0, 0, this.radius * 2.3, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = '#bbf7d0';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
             
-                    ctx.fillStyle = '#052e16';
-                    ctx.fillRect(-6, -1.5, 12, 3);
-                    ctx.fillRect(-1.5, -6, 3, 12);
+                    // Sombra no chão
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, this.radius * 0.95, this.radius * 0.9 * (1 + offset * 0.04), this.radius * 0.3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+            
+                    // Kit médico flutuando
+                    ctx.drawImage(s, -s.logicalSize / 2, offset - s.logicalSize / 2, s.logicalSize, s.logicalSize);
             
                     ctx.restore();
                 }
