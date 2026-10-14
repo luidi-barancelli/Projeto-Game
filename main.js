@@ -14,6 +14,14 @@ const CANVAS = document.getElementById('gameCanvas');
             const COIN_NITRO_RESTORE = 0.5;
 
             const HEALTH_PICKUP_HEAL_AMOUNT = 30;
+            const COP_HIT_DAMAGE = 25;          // vida perdida a cada batida de policial
+            const COP_HIT_COOLDOWN = 60;        // frames (~1s) entre batidas do mesmo policial
+            const COP_RETREAT_FRAMES = 30;      // frames que o policial recua depois de bater
+            const COP_KNOCKBACK_SPEED = 5;      // velocidade com que o policial é jogado pra trás ao bater
+            const DEATH_ANIM_MS = 2000;         // duração da explosão antes do game over (em milissegundos)
+            const DEATH_SHOWS_GAME_OVER = true; // true = abre a tela de game over | false = volta direto pro menu principal
+            const DEATH_ANIM_FRAMES = 110;      // duração da explosão antes do menu (60 frames = 1s)
+            const COP_CLOSE_RANGE = 220;
             const HEALTH_PICKUP_TARGET_COUNT = 4;
             const HEALTH_PICKUP_SPAWN_RADIUS = 1500;
             const HEALTH_PICKUP_DESPAWN_RADIUS = 2200;
@@ -195,8 +203,9 @@ const CANVAS = document.getElementById('gameCanvas');
             class ParticleSystem {
                 constructor() {
                     this.particles = [];
+                    this.fx = [];
                 }
-
+            
                 spawnSmoke(x, y, vx, vy, color = 'rgba(200, 200, 200, 0.4)', maxRadius = 12) {
                     this.particles.push({
                         x, y,
@@ -210,7 +219,7 @@ const CANVAS = document.getElementById('gameCanvas');
                         decay: 0.02 + Math.random() * 0.02
                     });
                 }
-
+            
                 spawnSpark(x, y) {
                     const angle = Math.random() * Math.PI * 2;
                     const speed = 2 + Math.random() * 6;
@@ -225,7 +234,7 @@ const CANVAS = document.getElementById('gameCanvas');
                         decay: 0.05 + Math.random() * 0.05
                     });
                 }
-
+            
                 spawnExplosion(x, y) {
                     for (let i = 0; i < 35; i++) {
                         const angle = Math.random() * Math.PI * 2;
@@ -245,7 +254,296 @@ const CANVAS = document.getElementById('gameCanvas');
                     }
                 }
 
+                spawnDeathExplosion(x, y, colorA, colorB) {
+                    // Flash gigante
+                    this.fx.push({ type: 'flash', x, y, radius: 30, grow: 20, life: 1, decay: 0.07 });
+                
+                    // Ondas de choque
+                    this.fx.push({ type: 'ring', x, y, radius: 10, grow: 22, width: 16, color: '#ffffff', life: 1, decay: 0.035 });
+                    this.fx.push({ type: 'ring', x, y, radius: 6, grow: 15, width: 10, color: '#fbbf24', life: 1, decay: 0.03 });
+                    this.fx.push({ type: 'ring', x, y, radius: 4, grow: 9, width: 7, color: '#ef4444', life: 1, decay: 0.025 });
+                
+                    // Estrela gigante
+                    this.fx.push({
+                        type: 'star', x, y, radius: 30, grow: 12,
+                        rot: Math.random() * Math.PI, spin: 0.03, spikes: 12,
+                        life: 1, decay: 0.05
+                    });
+                
+                    // Bola de fogo
+                    const fireColors = ['#ffffff', '#fde047', '#fbbf24', '#f97316', '#ef4444', '#b91c1c'];
+                    for (let i = 0; i < 60; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 0.5 + Math.random() * 4.5;
+                        this.particles.push({
+                            x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            radius: 8 + Math.random() * 10, maxRadius: 38,
+                            color: fireColors[Math.floor(Math.random() * fireColors.length)],
+                            alpha: 0.9, life: 1.0, decay: 0.018 + Math.random() * 0.02
+                        });
+                    }
+                
+                    // Fumaça preta que demora a sumir
+                    for (let i = 0; i < 22; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 0.3 + Math.random() * 1.9;
+                        this.particles.push({
+                            x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            radius: 10 + Math.random() * 8, maxRadius: 55,
+                            color: Math.random() > 0.5 ? 'rgba(20, 20, 25, 0.8)' : 'rgba(70, 70, 80, 0.7)',
+                            alpha: 0.8, life: 1.0, decay: 0.011 + Math.random() * 0.006
+                        });
+                    }
+                
+                    // Brasas
+                    for (let i = 0; i < 40; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 3 + Math.random() * 8;
+                        this.particles.push({
+                            x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            radius: 1.5 + Math.random() * 2, color: '#fbbf24',
+                            alpha: 1.0, life: 1.0, decay: 0.02 + Math.random() * 0.02
+                        });
+                    }
+                
+                    // Faíscas em risco
+                    const sparkColors = ['#ffffff', '#fde68a', '#fbbf24', '#f97316'];
+                    for (let i = 0; i < 60; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 6 + Math.random() * 20;
+                        this.fx.push({
+                            type: 'streak', x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            friction: 0.94, width: 2 + Math.random() * 2.5,
+                            color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
+                            life: 1, decay: 0.02 + Math.random() * 0.03
+                        });
+                    }
+                
+                    // Pedaços do carro
+                    const shardColors = [colorA, colorB, '#1e293b'];
+                    for (let i = 0; i < 26; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 3 + Math.random() * 12;
+                        this.fx.push({
+                            type: 'shard', x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            friction: 0.95, size: 4 + Math.random() * 6,
+                            rot: Math.random() * Math.PI * 2, spin: (Math.random() - 0.5) * 0.6,
+                            color: shardColors[Math.floor(Math.random() * shardColors.length)],
+                            life: 1, decay: 0.012 + Math.random() * 0.013
+                        });
+                    }
+                
+                    // Mancha de queimado no chão (fica por último para ser desenhada por baixo)
+                    this.fx.push({ type: 'scorch', x, y, radius: 70, life: 1, decay: 0.008 });
+                }
+                
+                spawnSecondaryBlast(x, y) {
+                    this.fx.push({ type: 'flash', x, y, radius: 18, grow: 14, life: 1, decay: 0.1 });
+                    this.fx.push({ type: 'ring', x, y, radius: 6, grow: 12, width: 8, color: '#fbbf24', life: 1, decay: 0.05 });
+                
+                    const fireColors = ['#fde047', '#f97316', '#ef4444'];
+                    for (let i = 0; i < 14; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 0.5 + Math.random() * 3;
+                        this.particles.push({
+                            x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            radius: 6 + Math.random() * 6, maxRadius: 26,
+                            color: fireColors[Math.floor(Math.random() * fireColors.length)],
+                            alpha: 0.9, life: 1.0, decay: 0.03 + Math.random() * 0.02
+                        });
+                    }
+                
+                    for (let i = 0; i < 14; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 4 + Math.random() * 11;
+                        this.fx.push({
+                            type: 'streak', x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            friction: 0.93, width: 1.5 + Math.random() * 2,
+                            color: Math.random() > 0.5 ? '#ffffff' : '#fbbf24',
+                            life: 1, decay: 0.035 + Math.random() * 0.03
+                        });
+                    }
+                }
+            
+                spawnImpact(x, y, nx, ny, colorA, colorB, damage) {
+                    const base = Math.atan2(ny, nx);
+            
+                    // Flash branco do impacto
+                    this.fx.push({ type: 'flash', x, y, radius: 14, grow: 8, life: 1, decay: 0.16 });
+            
+                    // Ondas de choque
+                    this.fx.push({ type: 'ring', x, y, radius: 6, grow: 10, width: 8, color: '#ffffff', life: 1, decay: 0.07 });
+                    this.fx.push({ type: 'ring', x, y, radius: 4, grow: 6, width: 5, color: '#fbbf24', life: 1, decay: 0.05 });
+            
+                    // Estrela de impacto (estilo quadrinhos)
+                    this.fx.push({
+                        type: 'star', x, y, radius: 12, grow: 5,
+                        rot: Math.random() * Math.PI, spin: 0.05, spikes: 9,
+                        life: 1, decay: 0.09
+                    });
+            
+                    // Faíscas em risco
+                    const sparkColors = ['#ffffff', '#fde68a', '#fbbf24', '#f97316'];
+                    for (let i = 0; i < 28; i++) {
+                        const a = base + (Math.random() - 0.5) * Math.PI * 1.6;
+                        const speed = 4 + Math.random() * 12;
+                        this.fx.push({
+                            type: 'streak', x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            friction: 0.92, width: 1.5 + Math.random() * 2,
+                            color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
+                            life: 1, decay: 0.035 + Math.random() * 0.04
+                        });
+                    }
+            
+                    // Estilhaços de lataria (cores dos dois carros)
+                    for (let i = 0; i < 12; i++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const speed = 2 + Math.random() * 7;
+                        this.fx.push({
+                            type: 'shard', x, y,
+                            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                            friction: 0.94, size: 3 + Math.random() * 4,
+                            rot: Math.random() * Math.PI * 2, spin: (Math.random() - 0.5) * 0.5,
+                            color: Math.random() > 0.5 ? colorA : colorB,
+                            life: 1, decay: 0.025 + Math.random() * 0.02
+                        });
+                    }
+            
+                    // Fumaça / poeira
+                    for (let i = 0; i < 8; i++) {
+                        this.spawnSmoke(x, y, nx * 1.5, ny * 1.5, 'rgba(160, 160, 170, 0.45)', 22);
+                    }
+            
+                    // Número de dano subindo
+                    this.fx.push({ type: 'text', x, y: y - 24, text: `-${damage}`, vy: -1.4, life: 1, decay: 0.018 });
+                }
+            
+                updateAndDrawFx(ctx) {
+                    for (let i = this.fx.length - 1; i >= 0; i--) {
+                        const e = this.fx[i];
+                        e.life -= e.decay;
+                        if (e.life <= 0) {
+                            this.fx.splice(i, 1);
+                            continue;
+                        }
+            
+                        ctx.save();
+            
+                        if (e.type === 'flash') {
+                            e.radius += e.grow;
+                            ctx.globalCompositeOperation = 'lighter';
+                            const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius);
+                            g.addColorStop(0, `rgba(255, 255, 255, ${e.life})`);
+                            g.addColorStop(0.4, `rgba(253, 224, 71, ${e.life * 0.7})`);
+                            g.addColorStop(1, 'rgba(249, 115, 22, 0)');
+                            ctx.fillStyle = g;
+                            ctx.beginPath();
+                            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                            ctx.fill();
+            
+                        } else if (e.type === 'ring') {
+                            e.radius += e.grow;
+                            e.grow *= 0.94;
+                            ctx.globalCompositeOperation = 'lighter';
+                            ctx.globalAlpha = e.life;
+                            ctx.strokeStyle = e.color;
+                            ctx.lineWidth = Math.max(0.5, e.width * e.life);
+                            ctx.beginPath();
+                            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                            ctx.stroke();
+            
+                        } else if (e.type === 'star') {
+                            e.radius += e.grow;
+                            e.rot += e.spin;
+                            ctx.globalCompositeOperation = 'lighter';
+                            ctx.globalAlpha = e.life;
+                            ctx.translate(e.x, e.y);
+                            ctx.rotate(e.rot);
+                            ctx.fillStyle = '#fde047';
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            const points = e.spikes * 2;
+                            for (let k = 0; k < points; k++) {
+                                const r = k % 2 === 0 ? e.radius : e.radius * 0.45;
+                                const a = (k / points) * Math.PI * 2;
+                                const px = Math.cos(a) * r;
+                                const py = Math.sin(a) * r;
+                                if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                            }
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+            
+                        } else if (e.type === 'streak') {
+                            e.x += e.vx;
+                            e.y += e.vy;
+                            e.vx *= e.friction;
+                            e.vy *= e.friction;
+                            ctx.globalCompositeOperation = 'lighter';
+                            ctx.globalAlpha = Math.min(1, e.life * 1.5);
+                            ctx.strokeStyle = e.color;
+                            ctx.lineWidth = e.width;
+                            ctx.lineCap = 'round';
+                            ctx.beginPath();
+                            ctx.moveTo(e.x, e.y);
+                            ctx.lineTo(e.x - e.vx * 2.2, e.y - e.vy * 2.2);
+                            ctx.stroke();
+            
+                        } else if (e.type === 'shard') {
+                            e.x += e.vx;
+                            e.y += e.vy;
+                            e.vx *= e.friction;
+                            e.vy *= e.friction;
+                            e.rot += e.spin;
+                            ctx.globalAlpha = Math.min(1, e.life * 1.5);
+                            ctx.translate(e.x, e.y);
+                            ctx.rotate(e.rot);
+                            ctx.fillStyle = e.color;
+                            ctx.fillRect(-e.size, -e.size * 0.5, e.size * 2, e.size);
+            
+                        } else if (e.type === 'scorch') {
+                            const a = Math.min(0.6, e.life);
+                            const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius);
+                            g.addColorStop(0, `rgba(0, 0, 0, ${a})`);
+                            g.addColorStop(0.6, `rgba(10, 10, 15, ${a * 0.6})`);
+                            g.addColorStop(1, 'rgba(10, 10, 15, 0)');
+                            ctx.fillStyle = g;
+                            ctx.beginPath();
+                            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (e.type === 'text') {
+                            e.y += e.vy;
+                            e.vy *= 0.97;
+                            const pop = e.life > 0.9 ? 1 + (e.life - 0.9) * 8 : 1;
+                            ctx.globalAlpha = Math.min(1, e.life * 2);
+                            ctx.translate(e.x, e.y);
+                            ctx.scale(pop, pop);
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
+                            ctx.lineJoin = 'round';
+                            ctx.lineWidth = 5;
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.strokeText(e.text, 0, 0);
+                            ctx.fillStyle = '#ef4444';
+                            ctx.fillText(e.text, 0, 0);
+                        }
+                        ctx.restore();
+                    }
+                }
+            
                 updateAndDraw(ctx) {
+                    this.updateAndDrawFx(ctx);
+            
                     for (let i = this.particles.length - 1; i >= 0; i--) {
                         const p = this.particles[i];
                         p.x += p.vx;
@@ -254,12 +552,12 @@ const CANVAS = document.getElementById('gameCanvas');
                         if (p.maxRadius && p.radius < p.maxRadius) {
                             p.radius += 0.3;
                         }
-
+            
                         if (p.life <= 0) {
                             this.particles.splice(i, 1);
                             continue;
                         }
-
+            
                         ctx.save();
                         ctx.globalAlpha = Math.max(0, p.life * p.alpha);
                         ctx.fillStyle = p.color;
@@ -270,7 +568,7 @@ const CANVAS = document.getElementById('gameCanvas');
                     }
                 }
             }
-
+    
             class SkidmarkManager {
                 // Stores skid marks as world-space line segments instead of a fixed-size
                 // canvas, so they keep working no matter how far the player drives.
@@ -518,30 +816,59 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.height = 22 * COP_SIZE_SCALE;
                     this.copType = copType;
                     this.sirenTimer = 0;
+                    this.hitCooldown = 0;
+                    this.retreatTimer = 0;
                 }
 
                 updateAI(targetPlayer) {
                     this.sirenTimer += 0.1;
-
-                    // Simple Vector Pursuit steering toward player position
+                
                     const dx = targetPlayer.x - this.x;
                     const dy = targetPlayer.y - this.y;
+                    const dist = Math.hypot(dx, dy);
                     const targetAngle = Math.atan2(dy, dx);
-
+                
                     // Angle difference normalization
                     let angleDiff = targetAngle - this.angle;
                     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-
+                
+                    // RECUO: depois de bater, volta de ré olhando pro jogador
+                    if (this.retreatTimer > 0) {
+                        this.retreatTimer--;
+                        const maxTurn = this.handling * 1.6;
+                        this.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
+                        this.updatePhysics({
+                            up: false, down: true, left: false, right: false,
+                            handbrake: false, nitro: false
+                        });
+                        return;
+                    }
+                
+                    const close = dist < COP_CLOSE_RANGE;
+                    const aligned = Math.abs(angleDiff) < 0.6;
+                
+                    if (close) {
+                        // Perto do jogador: gira no lugar até alinhar (evita ficar orbitando)
+                        const maxTurn = this.handling * 1.6;
+                        this.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
+                
+                        // Se ainda não está de frente pro jogador, freia em vez de acelerar
+                        if (!aligned) {
+                            this.vx *= 0.92;
+                            this.vy *= 0.92;
+                        }
+                    }
+                
                     const steerInput = {
-                        up: true,
+                        up: close ? aligned : true,
                         down: false,
-                        left: angleDiff < -0.1,
-                        right: angleDiff > 0.1,
-                        handbrake: Math.abs(angleDiff) > 1.2, // Handbrake turn on tight angles
+                        left: !close && angleDiff < -0.1,
+                        right: !close && angleDiff > 0.1,
+                        handbrake: !close && Math.abs(angleDiff) > 1.2, // Handbrake turn on tight angles
                         nitro: false
                     };
-
+                
                     this.updatePhysics(steerInput);
                 }
 
@@ -803,6 +1130,8 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.healthPickups = [];
                     this.props = [];
                     this.skidmarks.clear();
+                    this.particles.particles = [];
+                    this.particles.fx = [];
                     this.camera.x = 0;
                     this.camera.y = 0;
                 
@@ -837,12 +1166,76 @@ const CANVAS = document.getElementById('gameCanvas');
                     this.cops.push(new CopVehicle(x, y, type));
                 }
 
+                startDeathExplosion() {
+                    this.state = 'EXPLODING';
+                    this.deathStart = performance.now();
+                    this.deathFrames = 0;
+                    this.deathBlasts = [130, 300, 520, 760]; // explosões secundárias (ms)
+                
+                    const p = this.player;
+                    p.vx = 0;
+                    p.vy = 0;
+                    p.dead = true;
+                
+                    this.camera.shake = 45;
+                    audio.playExplosion();
+                    this.particles.spawnDeathExplosion(p.x, p.y, p.config.color, p.config.accent || '#ffffff');
+                
+                    document.getElementById('hudOverlay').classList.add('hidden');
+                    document.getElementById('driftComboContainer').style.opacity = '0';
+                }
+                
+                updateDeathAnimation() {
+                    this.deathFrames++;
+                    const elapsed = performance.now() - this.deathStart;
+                
+                    // Policiais continuam andando
+                    for (const cop of this.cops) cop.updateAI(this.player);
+                
+                    // Explosões secundárias
+                    while (this.deathBlasts.length && elapsed >= this.deathBlasts[0]) {
+                        this.deathBlasts.shift();
+                        const ox = (Math.random() - 0.5) * 70;
+                        const oy = (Math.random() - 0.5) * 70;
+                        this.particles.spawnSecondaryBlast(this.player.x + ox, this.player.y + oy);
+                        this.camera.shake = Math.max(this.camera.shake, 24);
+                        audio.playExplosion();
+                    }
+                
+                    this.camera.follow(this.player, CANVAS.width, CANVAS.height);
+                
+                    // Termina por tempo (ou por segurança, depois de muitos frames)
+                    if (!(elapsed < DEATH_ANIM_MS) || this.deathFrames > 400) {
+                        this.endDeathAnimation();
+                    }
+                }
+                
+                endDeathAnimation() {
+                    // Para tudo: sem tremor de câmera, sem partículas, sem movimento
+                    this.camera.shake = 0;
+                    this.particles.particles = [];
+                    this.particles.fx = [];
+                
+                    this.triggerGameOver(); // salva moedas/recorde e abre a tela de game over
+                
+                    if (!DEATH_SHOWS_GAME_OVER) {
+                        this.state = 'MENU';
+                        document.getElementById('gameOverModal').classList.add('hidden');
+                        document.getElementById('mainMenu').classList.remove('hidden');
+                        updateMenuData();
+                    }
+                }
+                
                 update() {
+                    if (this.state === 'EXPLODING') {
+                        this.updateDeathAnimation();
+                        return;
+                    }
                     if (this.state !== 'PLAYING') return;
-
+                
                     this.survivalTimer += 1 / 60;
                     this.copSpawnTimer += 1 / 60;
-
+                
                     // Dynamic Cop Spawns (increasing intensity)
                     const spawnInterval = Math.max(4, 12 - Math.floor(this.survivalTimer / 20));
                     if (this.copSpawnTimer >= spawnInterval && this.cops.length < 12) {
@@ -851,21 +1244,21 @@ const CANVAS = document.getElementById('gameCanvas');
                         const copType = r > 0.7 ? 'SWAT' : (r > 0.4 ? 'INTERCEPTOR' : 'STANDARD');
                         this.spawnCop(copType);
                     }
-
+                
                     // Update Player
                     this.player.updatePhysics(this.inputs);
                     audio.updateEnginePitch(Math.hypot(this.player.vx, this.player.vy) / this.player.topSpeed);
-
+                
                     this.maintainProps();
                     this.maintainCoins();
                     this.maintainHealthPickups();
-
+                
                     // Drift Combo Logic
                     if (this.player.isDrifting) {
                         this.driftComboScore += 12;
                         this.driftMultiplier = Math.min(5.0, this.driftMultiplier + 0.005);
                         this.score += Math.floor(2 * this.driftMultiplier);
-
+                
                         // Show drift overlay
                         const comboElem = document.getElementById('driftComboContainer');
                         comboElem.style.opacity = '1';
@@ -879,28 +1272,57 @@ const CANVAS = document.getElementById('gameCanvas');
                         }
                         document.getElementById('driftComboContainer').style.opacity = '0';
                     }
-
+                
                     // Update Cops & Cop Collisions
                     for (let i = this.cops.length - 1; i >= 0; i--) {
                         const cop = this.cops[i];
                         cop.updateAI(this.player);
-
+                        if (cop.hitCooldown > 0) cop.hitCooldown--;
+                
                         // Cop vs Player Collision
                         const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
                         if (distToPlayer < 36) {
                             this.camera.shake = 18;
                             this.particles.spawnSpark((cop.x + this.player.x) / 2, (cop.y + this.player.y) / 2);
-
+                
+                            // Batida: joga o policial pra trás e faz ele recuar antes de atacar de novo
+                            if (cop.retreatTimer <= 0) {
+                                const kdx = cop.x - this.player.x;
+                                const kdy = cop.y - this.player.y;
+                                const kd = Math.hypot(kdx, kdy) || 1;
+                                cop.x = this.player.x + (kdx / kd) * 40;
+                                cop.y = this.player.y + (kdy / kd) * 40;
+                                cop.vx = (kdx / kd) * COP_KNOCKBACK_SPEED;
+                                cop.vy = (kdy / kd) * COP_KNOCKBACK_SPEED;
+                                cop.retreatTimer = COP_RETREAT_FRAMES;
+                            }
+                
                             if (this.player.isNitro) {
                                 // Player rams cop in nitro state!
                                 cop.health -= 60;
                                 this.player.health -= 5;
                             } else {
-                                this.player.health -= 0.6;
+                                // Cada batida do policial tira COP_HIT_DAMAGE de vida (com cooldown por policial)
+                                if (cop.hitCooldown <= 0) {
+                                    this.player.health -= COP_HIT_DAMAGE;
+                                    cop.hitCooldown = COP_HIT_COOLDOWN;
+                
+                                    // Efeito visual do impacto
+                                    const ix = cop.x - this.player.x;
+                                    const iy = cop.y - this.player.y;
+                                    const id = Math.hypot(ix, iy) || 1;
+                                    this.particles.spawnImpact(
+                                        this.player.x + (ix / id) * 20,
+                                        this.player.y + (iy / id) * 20,
+                                        ix / id, iy / id,
+                                        cop.config.color, this.player.config.color,
+                                        COP_HIT_DAMAGE
+                                    );
+                                }
                                 cop.health -= 0.4;
                             }
                         }
-
+                
                         // Cop vs Cop Collisions
                         for (let j = i - 1; j >= 0; j--) {
                             const otherCop = this.cops[j];
@@ -911,7 +1333,7 @@ const CANVAS = document.getElementById('gameCanvas');
                                 this.particles.spawnSpark((cop.x + otherCop.x) / 2, (cop.y + otherCop.y) / 2);
                             }
                         }
-
+                
                         // Wreck Cop condition
                         if (cop.health <= 0) {
                             this.particles.spawnExplosion(cop.x, cop.y);
@@ -920,14 +1342,14 @@ const CANVAS = document.getElementById('gameCanvas');
                             this.copsWrecked++;
                             this.score += 500;
                             this.coinsEarnedSession += 100;
-
+                
                             // Spawn reward coins
                             for (let c = 0; c < 3; c++) {
                                 this.coins.push(new CoinPickup(cop.x + (Math.random() - 0.5) * 40, cop.y + (Math.random() - 0.5) * 40, 50));
                             }
                         }
                     }
-
+                
                     // Coin Collection
                     for (let i = this.coins.length - 1; i >= 0; i--) {
                         const coin = this.coins[i];
@@ -939,7 +1361,7 @@ const CANVAS = document.getElementById('gameCanvas');
                             this.coins.splice(i, 1);
                         }
                     }
-
+                
                     // Health Pickup Collection
                     for (let i = this.healthPickups.length - 1; i >= 0; i--) {
                         const pickup = this.healthPickups[i];
@@ -949,7 +1371,7 @@ const CANVAS = document.getElementById('gameCanvas');
                             this.healthPickups.splice(i, 1);
                         }
                     }
-
+                
                     // Map Prop Collisions
                     for (let p of this.props) {
                         if (p.destroyed) continue;
@@ -959,15 +1381,15 @@ const CANVAS = document.getElementById('gameCanvas');
                             this.camera.shake = 8;
                         }
                     }
-
+                
                     // Camera Follow
                     this.camera.follow(this.player, CANVAS.width, CANVAS.height);
-
+                
                     // Check Game Over Condition
                     if (this.player.health <= 0) {
-                        this.triggerGameOver();
+                        this.startDeathExplosion();
                     }
-
+                
                     this.updateHUD();
                 }
 
@@ -992,7 +1414,6 @@ const CANVAS = document.getElementById('gameCanvas');
 
                 triggerGameOver() {
                     this.state = 'GAMEOVER';
-                    audio.playExplosion();
 
                     saveData.coins += this.coinsEarnedSession;
                     if (this.score > saveData.highScore) {
@@ -1071,7 +1492,7 @@ const CANVAS = document.getElementById('gameCanvas');
                     for (let h of this.healthPickups) h.draw(CTX);
 
                     // Render Player & Cops
-                    this.player.draw(CTX);
+                    if (!this.player.dead) this.player.draw(CTX);
                     for (let cop of this.cops) cop.draw(CTX);
 
                     // Render Particle System
@@ -1271,3 +1692,4 @@ const CANVAS = document.getElementById('gameCanvas');
             }
 
             requestAnimationFrame(gameLoop);
+            //67
