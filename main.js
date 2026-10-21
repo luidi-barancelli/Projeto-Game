@@ -16,7 +16,14 @@ const COIN_DESPAWN_RADIUS = 1600;
 const MAP_SIZE = 3600
 // espaço mínimo entre dois policiais (os carros têm ~57 de comprimento)
 const COP_MIN_DISTANCE = 48; 
+const COP_SEPARATION_RADIUS = 300;   // distância em que um policial começa a se afastar de outro
 const DRIFT_GRACE_FRAMES = 75; // tempo para retomar o drift antes de bancar os pontos (60 frames = 1s)
+const DRIFT_BASE_POINTS = 2.0;       // pontos base por frame de drift
+const DRIFT_MULT_MAX = 5.0;          // teto do multiplicador
+const DRIFT_MULT_STEP = 0.006;       // quanto o multiplicador sobe por frame de drift
+const CHAIN_RECOVERY_FRAMES = 300;   // janela pra recuperar o combo perdido (300 frames = 5 s)
+const RECOVERY_POINTS = 650;         // pontos (moedas/policiais) que recuperam o combo
+const RECOVERY_DRIFT_POINTS = 300;   // pontos brutos de drift que recuperam o combo
 
 // -----------------------------------------------
 // dificuldades do game abaixo
@@ -25,30 +32,36 @@ const DIFFICULTY_LEVELS = {
     EASY: {
         label: 'FÁCIL',
         activeClass: 'bg-green-500 border-green-400 text-slate-950',
-        initialCops: 2, baseSpawnInterval: 5, minSpawnInterval: 4, maxCops: 8,
+        initialCops: 2, baseSpawnInterval: 5, minSpawnInterval: 4, maxCops: 6,
         coinMult: 1.4, healthKits: 3, nitroMult: 1, superCoins: true, nitroPower: 1,
+        copAI: { flankChance: 0.25, ambushChance: 0.10, leadFrames: 25, separation: 1.6 },
         info: 'Se você não aguenta a pressão!'
     },
     MEDIUM: {
         label: 'MÉDIO',
         activeClass: 'bg-cyan-500 border-cyan-400 text-slate-950',
-        initialCops: 4, baseSpawnInterval: 4, minSpawnInterval: 3, maxCops: 14,
+        initialCops: 4, baseSpawnInterval: 4, minSpawnInterval: 3, maxCops: 8,
         coinMult: 1, healthKits: 2, nitroMult: 1, superCoins: true, nitroPower: 1,
+        copAI: { flankChance: 0.30, ambushChance: 0.20, leadFrames: 40, separation: 1.5 },
         info: 'Você aguenta a pressão, mas ainda tem medo!'
     },
     HARD: {
         label: 'DIFÍCIL',
         activeClass: 'bg-amber-500 border-amber-400 text-slate-950',
-        initialCops: 8, baseSpawnInterval: 3, minSpawnInterval: 2, maxCops: 18,
+        initialCops: 6, baseSpawnInterval: 3, minSpawnInterval: 2, maxCops: 9,
         coinMult: 0.7, healthKits: 0, nitroMult: 0.5, superCoins: true, nitroPower: 0.5,
+        copAI: { flankChance: 0.30, ambushChance: 0.30, leadFrames: 55, separation: 1.4 },
         info: 'Você é impressionante. Parabéns!',
         warning: 'No modo DIFÍCIL não nascem kits de vida!'
     },
     EXTREME: {
         label: 'EXTREMO',
         activeClass: 'bg-red-500 border-red-400 text-slate-950',
-        initialCops: 10, baseSpawnInterval: 2, minSpawnInterval: 1.5, maxCops: 25,
+        initialCops: 8, baseSpawnInterval: 2, minSpawnInterval: 1.5, maxCops: 10,
         coinMult: 0.5, healthKits: 0, nitroMult: 0, superCoins: false, nitroPower: 0,
+        comboRecovery: false, // indica se recupera ou não o combo perdido, nesse caso
+        // na dificuldade EXTREME, nunca recupera
+        copAI: { flankChance: 0.30, ambushChance: 0.45, leadFrames: 75, separation: 1.3 },
         info: 'Você tem meu respeito. Parabéns Corajoso!',
         warning: 'No modo EXTREMO não nascem kits de vida! Boa sorte.'
     }
@@ -875,9 +888,81 @@ class CopVehicle extends Vehicle {
         this.sirenTimer = 0;
         this.hitCooldown = 0;
         this.retreatTimer = 0;
+
+        // função do policial, sorteada ao nascer conforme a dificuldade
+        const ai = getDifficulty().copAI;
+        const roll = Math.random();
+        this.role = roll < ai.ambushChance ? 'AMBUSHER'
+            : roll < ai.ambushChance + ai.flankChance ? 'FLANKER'
+                : 'CHASER';
+        this.flankSide = Math.random() < 0.5 ? -1 : 1;
     }
 
-    updateAI(targetPlayer) {
+    // pra onde esse policial mira enquanto ainda está longe do jogador
+    getAimAngle(player, dist, allCops) {
+        const ai = getDifficulty().copAI;
+        let tx = player.x;
+        let ty = player.y;
+
+        // longe: cada função usa uma estratégia diferente (perto, todos atacam direto)
+        if (dist > COP_CLOSE_RANGE * 1.5) {
+            // tempo (em frames) que o policial levaria pra chegar lá, limitado pela dificuldade
+            const eta = Math.min(dist / this.topSpeed, ai.leadFrames * 2);
+
+            if (this.role === 'AMBUSHER') {
+                // intercepta: mira onde o jogador vai estar quando o policial chegar
+                tx += player.vx * eta;
+                ty += player.vy * eta;
+            } else if (this.role === 'FLANKER') {
+                // vem pelo lado: mira num ponto ao lado da trajetória do jogador
+                const heading = Math.hypot(player.vx, player.vy) > 0.5
+                    ? Math.atan2(player.vy, player.vx) : player.angle;
+                const sideAngle = heading + (Math.PI / 2) * this.flankSide;
+                const offset = Math.min(dist * 0.5, 320);
+                tx += Math.cos(sideAngle) * offset + player.vx * eta * 0.5;
+                ty += Math.sin(sideAngle) * offset + player.vy * eta * 0.5;
+            } else {
+                // perseguidor: só uma leve previsão
+                tx += player.vx * eta * 0.3;
+                ty += player.vy * eta * 0.3;
+            }
+        }
+
+        let ax = tx - this.x;
+        let ay = ty - this.y;
+        const len = Math.hypot(ax, ay) || 1;
+        ax /= len;
+        ay /= len;
+
+        // separação: se afasta de outros policiais pra não irem todos juntos
+        // (perto do jogador a força é menor, pra eles ainda atacarem)
+        if (ai.separation > 0) {
+            let sx = 0;
+            let sy = 0;
+            for (const other of allCops) {
+                if (other === this) {
+                    continue;
+                }
+                const ox = this.x - other.x;
+                const oy = this.y - other.y;
+                const od = Math.hypot(ox, oy);
+                if (od > 0 && od < COP_SEPARATION_RADIUS) {
+                    const push = (1 - od / COP_SEPARATION_RADIUS) * ai.separation;
+                    sx += (ox / od) * push;
+                    sy += (oy / od) * push;
+                }
+            }
+            const maxPush = dist < COP_CLOSE_RANGE ? 0.8 : 1.5;
+            const pushLen = Math.hypot(sx, sy);
+            const scale = pushLen > maxPush ? maxPush / pushLen : 1;
+            ax += sx * scale;
+            ay += sy * scale;
+        }
+
+        return Math.atan2(ay, ax);
+    }
+
+    updateAI(targetPlayer, allCops = []) {
         this.sirenTimer += 0.1;
     
         const dx = targetPlayer.x - this.x;
@@ -903,26 +988,36 @@ class CopVehicle extends Vehicle {
         }
     
         const close = dist < COP_CLOSE_RANGE;
-        const aligned = Math.abs(angleDiff) < 0.6;
-    
+
+        // pra onde mirar: longe usa a estratégia da função; perto ataca direto,
+        // mas sempre mantendo distância dos outros policiais
+        let aimDiff = this.getAimAngle(targetPlayer, dist, allCops) - this.angle;
+        while (aimDiff < -Math.PI) {
+            aimDiff += Math.PI * 2;
+        }
+        while (aimDiff > Math.PI) {
+            aimDiff -= Math.PI * 2;
+        }
+        const aligned = Math.abs(aimDiff) < 0.6;
+
         if (close) {
             // Perto do jogador: gira no lugar até alinhar (evita ficar orbitando)
             const maxTurn = this.handling * 1.6;
-            this.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
-    
-            // Se ainda não está de frente pro jogador, freia em vez de acelerar
+            this.angle += Math.max(-maxTurn, Math.min(maxTurn, aimDiff));
+
+            // Se ainda não está de frente, freia em vez de acelerar
             if (!aligned) {
                 this.vx *= 0.92;
                 this.vy *= 0.92;
             }
         }
-    
+
         const steerInput = {
             up: close ? aligned : true,
             down: false,
-            left: !close && angleDiff < -0.1,
-            right: !close && angleDiff > 0.1,
-            handbrake: !close && Math.abs(angleDiff) > 1.2, // Handbrake turn on tight angles
+            left: !close && aimDiff < -0.1,
+            right: !close && aimDiff > 0.1,
+            handbrake: !close && Math.abs(aimDiff) > 1.2, // Handbrake turn on tight angles
             nitro: false
         };
     
@@ -1391,6 +1486,8 @@ class GameEngine {
 
         this.driftComboScore = 0;
         this.driftMultiplier = 1.0;
+        this.lostChain = null;
+        this.recoverFlash = 0;
 
         this.driftGrace = 0;
         clearTimeout(this.driftHideTimer);
@@ -1515,6 +1612,8 @@ class GameEngine {
         this.copSpawnTimer = 0;
         this.driftComboScore = 0;
         this.driftMultiplier = 1.0;
+        this.lostChain = null;
+        this.recoverFlash = 0;
 
         for (let i = 0; i < getDifficulty().initialCops; i++) {
             this.spawnCop('STANDARD');
@@ -1532,12 +1631,22 @@ class GameEngine {
     }
 
     spawnCop(type) {
-        // Spawn cops in a ring around the player, wherever they currently are
-        const angle = Math.random() * Math.PI * 2;
+        const cop = new CopVehicle(0, 0, type);
+        const p = this.player;
+        let angle = Math.random() * Math.PI * 2;
         const dist = 900 + Math.random() * 300;
-        const x = this.player.x + Math.cos(angle) * dist;
-        const y = this.player.y + Math.sin(angle) * dist;
-        this.cops.push(new CopVehicle(x, y, type));
+
+        // emboscador nasce à frente de onde o jogador vai, e o de flanco nasce de lado
+        if (Math.hypot(p.vx, p.vy) > 1 && cop.role !== 'CHASER') {
+            const heading = Math.atan2(p.vy, p.vx);
+            angle = cop.role === 'AMBUSHER'
+                ? heading + (Math.random() - 0.5) * 0.9
+                : heading + cop.flankSide * (Math.PI / 2 + (Math.random() - 0.5) * 0.6);
+        }
+
+        cop.x = p.x + Math.cos(angle) * dist;
+        cop.y = p.y + Math.sin(angle) * dist;
+        this.cops.push(cop);
     }
 
     startDeathExplosion() {
@@ -1564,7 +1673,9 @@ class GameEngine {
         const elapsed = performance.now() - this.deathStart;
     
         // Policiais continuam andando
-        for (const cop of this.cops) cop.updateAI(this.player);
+        for (const cop of this.cops) {
+            cop.updateAI(this.player);
+        }
     
         // Explosões secundárias
         while (this.deathBlasts.length && elapsed >= this.deathBlasts[0]) {
@@ -1630,11 +1741,23 @@ class GameEngine {
     
         // tentei copiar o estilo forza horizon 5 de drift - teste 21/10/26 - Luidi 
         if (this.player.isDrifting) {
+            const p = this.player;
+            const speedFactor = Math.hypot(p.vx, p.vy) / p.topSpeed;
+
+            let slip = Math.abs(Math.atan2(p.vy, p.vx) - p.angle) % (Math.PI * 2);
+            if (slip > Math.PI) slip = Math.PI * 2 - slip;
+            if (slip > Math.PI / 2) slip = Math.PI - slip;
+            const angleFactor = Math.min(1.8, Math.max(0.5, slip / 0.5));
+
             this.driftGrace = DRIFT_GRACE_FRAMES;
-            this.driftComboScore += 12;
-            this.driftMultiplier = Math.min(5.0, this.driftMultiplier + 0.005);
-            this.score += Math.floor(2 * this.driftMultiplier);
+            this.driftComboScore += DRIFT_BASE_POINTS * speedFactor * angleFactor;
+            this.driftMultiplier = Math.min(DRIFT_MULT_MAX, this.driftMultiplier + DRIFT_MULT_STEP);
             this.showDriftChain(1);
+
+            // drift forte de novo dentro da janela: recupera o combo perdido
+            if (this.lostChain && this.driftComboScore >= RECOVERY_DRIFT_POINTS) {
+                this.recoverDriftChain();
+            }
         } else if (this.driftComboScore > 0) {
             this.driftGrace--;
             if (this.driftGrace > 0) {
@@ -1643,12 +1766,29 @@ class GameEngine {
                 this.bankDriftChain();
             }
         }
+
+        // contagem da janela de recuperação
+        if (this.recoverFlash > 0) {
+            this.recoverFlash--;
+        }
+        if (this.lostChain) {
+            this.lostChain.frames--;
+            if (!this.player.isDrifting && this.driftComboScore <= 0) {
+                document.getElementById('driftChainBar').style.width =
+                    `${Math.max(0, this.lostChain.frames / CHAIN_RECOVERY_FRAMES) * 100}%`;
+            }
+            if (this.lostChain.frames <= 0) {
+                this.lostChain = null;
+            }
+        }
     
         // Update Cops & Cop Collisions
         for (let i = this.cops.length - 1; i >= 0; i--) {
             const cop = this.cops[i];
-            cop.updateAI(this.player);
-            if (cop.hitCooldown > 0) cop.hitCooldown--;
+            cop.updateAI(this.player, this.cops);
+            if (cop.hitCooldown > 0) {
+                cop.hitCooldown--;
+            }
     
             // Cop vs Player Collision
             const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
@@ -1743,6 +1883,7 @@ class GameEngine {
                 this.cops.splice(i, 1);
                 this.copsWrecked++;
                 this.score += 500;
+                this.addRecoveryPoints(500);
                 this.coinsEarnedSession += 100;
     
                 // Spawn reward coins
@@ -1752,12 +1893,21 @@ class GameEngine {
             }
         }
     
-        // Coin Collection
+        // coletanea de coins
+        // esse FOR é a exec principal e decide quantos coins aquela moeda dá e o que deve fazer
         for (let i = this.coins.length - 1; i >= 0; i--) {
             const coin = this.coins[i];
             if (Math.hypot(coin.x - this.player.x, coin.y - this.player.y) < 32) {
                 this.coinsEarnedSession += coin.value;
-                this.score += coin.isSuper ? 100 * SUPER_COIN_MULTIPLIER : 100;
+                const coinPoints = coin.isSuper ? 100 * SUPER_COIN_MULTIPLIER : 100;
+                this.score += coinPoints;
+
+                if (coin.isSuper) {
+                    this.recoverDriftChain(); // super coin sempre recupera o combo
+                } else {
+                    this.addRecoveryPoints(coinPoints);
+                }
+
                 this.player.nitroEnergy = Math.min(this.player.nitroMax, this.player.nitroEnergy + COIN_NITRO_RESTORE);
                 audio.playCoin();
                 this.coins.splice(i, 1);
@@ -1803,7 +1953,8 @@ class GameEngine {
 
         const m = this.driftMultiplier;
         document.getElementById('driftSkillName').innerText =
-            m >= 4 ? 'DRIFT LENDÁRIO' : m >= 3 ? 'DRIFT PERFEITO' : m >= 2 ? 'DRIFT LIMPO' : 'DRIFT';
+            this.recoverFlash > 0 ? 'COMBO RECUPERADO' :
+                m >= 4 ? 'DRIFT LENDÁRIO' : m >= 3 ? 'DRIFT PERFEITO' : m >= 2 ? 'DRIFT LIMPO' : 'DRIFT';
         document.getElementById('driftComboMultiplier').innerText = `x${m.toFixed(1)}`;
         document.getElementById('driftComboScore').innerText = Math.floor(this.driftComboScore * m);
         document.getElementById('driftChainBar').style.width = `${Math.max(0, barRatio) * 100}%`;
@@ -1830,8 +1981,21 @@ class GameEngine {
 
     loseDriftChain() {
         if (this.driftComboScore <= 0) {
-            return
+            return;
         }
+
+        const canRecover = getDifficulty().comboRecovery !== false;
+
+        // guarda o combo pela janela de recuperação (não sobrescreve se já houver um guardado)
+        if (canRecover && !this.lostChain) {
+            this.lostChain = {
+                score: this.driftComboScore,
+                mult: this.driftMultiplier,
+                frames: CHAIN_RECOVERY_FRAMES,
+                earned: 0,
+            };
+        }
+
         this.driftComboScore = 0;
         this.driftMultiplier = 1.0;
         this.driftGrace = 0;
@@ -1842,13 +2006,41 @@ class GameEngine {
         box.classList.add('skill-lost');
         box.style.opacity = '1';
         document.getElementById('driftSkillName').innerText = 'COMBO PERDIDO';
-        document.getElementById('driftComboScore').innerText = '0';
-        document.getElementById('driftChainBar').style.width = '0%';
+        document.getElementById('driftComboScore').innerText =
+            canRecover ? Math.floor(this.lostChain.score * this.lostChain.mult) : '0';
+        document.getElementById('driftChainBar').style.width = canRecover ? '100%' : '0%';
 
+        // com recuperação o card fica a janela inteira; no Extremo some rápido, como era antes
+        const hideAfterMs = canRecover ? (CHAIN_RECOVERY_FRAMES / 60) * 1000 : 900;
         this.driftHideTimer = setTimeout(() => {
             box.style.opacity = '0';
             box.classList.remove('skill-lost');
-        }, 900);
+        }, hideAfterMs);
+    }
+
+    // pontos de moedas/policiais durante a janela contam pra recuperar o combo
+    addRecoveryPoints(points) {
+        if (!this.lostChain) return;
+        this.lostChain.earned += points;
+        if (this.lostChain.earned >= RECOVERY_POINTS) {
+            this.recoverDriftChain();
+        }
+    }
+
+    recoverDriftChain() {
+        const lost = this.lostChain;
+        if (!lost) return;
+
+        this.driftComboScore += lost.score;
+        this.driftMultiplier = Math.max(this.driftMultiplier, lost.mult);
+        this.driftGrace = DRIFT_GRACE_FRAMES;
+        this.lostChain = null;
+        this.recoverFlash = 45; // ~0,75 s com o nome "COMBO RECUPERADO"
+
+        const box = document.getElementById('driftComboContainer');
+        clearTimeout(this.driftHideTimer);
+        box.classList.remove('skill-lost', 'skill-banked');
+        this.showDriftChain(1);
     }
 
     updateHUD() {
