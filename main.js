@@ -1,4 +1,4 @@
-const CANVAS = document.getElementById('gameCanvas');
+            const CANVAS = document.getElementById('gameCanvas');
             const CTX = CANVAS.getContext('2d');
             const ITEM_SPAWN_MULTIPLIER = 0.8;  // 1.0 = quantidade original | 0.8 = 20% menos itens (não afeta o kit de vida)
             const PROP_TARGET_COUNT = Math.round(90 * ITEM_SPAWN_MULTIPLIER); 
