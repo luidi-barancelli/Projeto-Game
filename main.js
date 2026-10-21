@@ -16,6 +16,7 @@ const COIN_DESPAWN_RADIUS = 1600;
 const MAP_SIZE = 3600
 // espaço mínimo entre dois policiais (os carros têm ~57 de comprimento)
 const COP_MIN_DISTANCE = 48; 
+const DRIFT_GRACE_FRAMES = 75; // tempo para retomar o drift antes de bancar os pontos (60 frames = 1s)
 
 // -----------------------------------------------
 // dificuldades do game abaixo
@@ -1391,6 +1392,10 @@ class GameEngine {
         this.driftComboScore = 0;
         this.driftMultiplier = 1.0;
 
+        this.driftGrace = 0;
+        clearTimeout(this.driftHideTimer);
+        document.getElementById('driftComboContainer').style.opacity = '0';
+
         this.inputs = {
             up: false,
             down: false,
@@ -1623,24 +1628,20 @@ class GameEngine {
         this.maintainCoins();
         this.maintainHealthPickups();
     
-        // Drift Combo Logic
+        // tentei copiar o estilo forza horizon 5 de drift - teste 21/10/26 - Luidi 
         if (this.player.isDrifting) {
+            this.driftGrace = DRIFT_GRACE_FRAMES;
             this.driftComboScore += 12;
             this.driftMultiplier = Math.min(5.0, this.driftMultiplier + 0.005);
             this.score += Math.floor(2 * this.driftMultiplier);
-    
-            // Show drift overlay
-            const comboElem = document.getElementById('driftComboContainer');
-            comboElem.style.opacity = '1';
-            document.getElementById('driftComboMultiplier').innerText = `DRIFT x${this.driftMultiplier.toFixed(1)}`;
-            document.getElementById('driftComboScore').innerText = `+${Math.floor(this.driftComboScore)}`;
-        } else {
-            if (this.driftComboScore > 0) {
-                this.score += Math.floor(this.driftComboScore * this.driftMultiplier);
-                this.driftComboScore = 0;
-                this.driftMultiplier = 1.0;
+            this.showDriftChain(1);
+        } else if (this.driftComboScore > 0) {
+            this.driftGrace--;
+            if (this.driftGrace > 0) {
+                this.showDriftChain(this.driftGrace / DRIFT_GRACE_FRAMES);
+            } else {
+                this.bankDriftChain();
             }
-            document.getElementById('driftComboContainer').style.opacity = '0';
         }
     
         // Update Cops & Cop Collisions
@@ -1677,6 +1678,7 @@ class GameEngine {
                 // Dano no jogador: SEMPRE COP_HIT_DAMAGE (25) por batida, com ou sem nitro
                 if (cop.hitCooldown <= 0 && cop.health > 0) {
                     this.player.health -= COP_HIT_DAMAGE;
+                    this.loseDriftChain();
                     cop.hitCooldown = COP_HIT_COOLDOWN;
 
                     // Efeito visual do impacto
@@ -1791,6 +1793,62 @@ class GameEngine {
         }
     
         this.updateHUD();
+    }
+
+    showDriftChain(barRatio) {
+        clearTimeout(this.driftHideTimer);
+        const box = document.getElementById('driftComboContainer');
+        box.classList.remove('skill-banked', 'skill-lost');
+        box.style.opacity = '1';
+
+        const m = this.driftMultiplier;
+        document.getElementById('driftSkillName').innerText =
+            m >= 4 ? 'DRIFT LENDÁRIO' : m >= 3 ? 'DRIFT PERFEITO' : m >= 2 ? 'DRIFT LIMPO' : 'DRIFT';
+        document.getElementById('driftComboMultiplier').innerText = `x${m.toFixed(1)}`;
+        document.getElementById('driftComboScore').innerText = Math.floor(this.driftComboScore * m);
+        document.getElementById('driftChainBar').style.width = `${Math.max(0, barRatio) * 100}%`;
+    }
+
+    bankDriftChain() {
+        const total = Math.floor(this.driftComboScore * this.driftMultiplier);
+        this.score += total;
+        this.driftComboScore = 0;
+        this.driftMultiplier = 1.0;
+        this.driftGrace = 0;
+
+        const box = document.getElementById('driftComboContainer');
+        box.classList.add('skill-banked');
+        document.getElementById('driftComboScore').innerText = `+${total}`;
+        document.getElementById('driftChainBar').style.width = '0%';
+
+        clearTimeout(this.driftHideTimer);
+        this.driftHideTimer = setTimeout(() => {
+            box.style.opacity = '0';
+            box.classList.remove('skill-banked');
+        }, 1100);
+    }
+
+    loseDriftChain() {
+        if (this.driftComboScore <= 0) {
+            return
+        }
+        this.driftComboScore = 0;
+        this.driftMultiplier = 1.0;
+        this.driftGrace = 0;
+
+        const box = document.getElementById('driftComboContainer');
+        clearTimeout(this.driftHideTimer);
+        box.classList.remove('skill-banked');
+        box.classList.add('skill-lost');
+        box.style.opacity = '1';
+        document.getElementById('driftSkillName').innerText = 'COMBO PERDIDO';
+        document.getElementById('driftComboScore').innerText = '0';
+        document.getElementById('driftChainBar').style.width = '0%';
+
+        this.driftHideTimer = setTimeout(() => {
+            box.style.opacity = '0';
+            box.classList.remove('skill-lost');
+        }, 900);
     }
 
     updateHUD() {
