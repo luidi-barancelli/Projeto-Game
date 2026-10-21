@@ -5,7 +5,6 @@ const PROP_SPAWN_RADIUS = 1600;
 const PROP_DESPAWN_RADIUS = 2400;  
 const ITEM_SPAWN_MULTIPLIER = 0.8;
 const COIN_TARGET_COUNT = Math.round(45 * ITEM_SPAWN_MULTIPLIER);
-const HEALTH_PICKUP_TARGET_COUNT = 2;
 const COIN_BASE_VALUE = 25;          // valor de uma moeda normal
 const COIN_CLUSTER_CHANCE = 0.30;    // 30% de chance de nascer um grupo de moedas
 const COIN_CLUSTER_MAX = 3;          // máximo de moedas por grupo
@@ -14,7 +13,49 @@ const SUPER_COIN_CHANCE = 0.08;      // 4% de chance de nascer uma super moeda
 const SUPER_COIN_MULTIPLIER = 3;     // super moeda vale o triplo
 const COIN_SPAWN_RADIUS = 1400;
 const COIN_DESPAWN_RADIUS = 1600;
-const MAP_SIZE = 3600;
+const MAP_SIZE = 3600
+// espaço mínimo entre dois policiais (os carros têm ~57 de comprimento)
+const COP_MIN_DISTANCE = 48; 
+
+// -----------------------------------------------
+// dificuldades do game abaixo
+
+const DIFFICULTY_LEVELS = {
+    EASY: {
+        label: 'FÁCIL',
+        activeClass: 'bg-green-500 border-green-400 text-slate-950',
+        initialCops: 2, baseSpawnInterval: 5, minSpawnInterval: 4, maxCops: 8,
+        coinMult: 1.4, healthKits: 3, nitroMult: 1, superCoins: true, nitroPower: 1,
+        info: 'Se você não aguenta a pressão!'
+    },
+    MEDIUM: {
+        label: 'MÉDIO',
+        activeClass: 'bg-cyan-500 border-cyan-400 text-slate-950',
+        initialCops: 4, baseSpawnInterval: 4, minSpawnInterval: 3, maxCops: 14,
+        coinMult: 1, healthKits: 2, nitroMult: 1, superCoins: true, nitroPower: 1,
+        info: 'Você aguenta a pressão, mas ainda tem medo!'
+    },
+    HARD: {
+        label: 'DIFÍCIL',
+        activeClass: 'bg-amber-500 border-amber-400 text-slate-950',
+        initialCops: 8, baseSpawnInterval: 3, minSpawnInterval: 2, maxCops: 18,
+        coinMult: 0.7, healthKits: 0, nitroMult: 0.5, superCoins: true, nitroPower: 0.5,
+        info: 'Você é impressionante. Parabéns!',
+        warning: 'No modo DIFÍCIL não nascem kits de vida!'
+    },
+    EXTREME: {
+        label: 'EXTREMO',
+        activeClass: 'bg-red-500 border-red-400 text-slate-950',
+        initialCops: 10, baseSpawnInterval: 2, minSpawnInterval: 1.5, maxCops: 25,
+        coinMult: 0.5, healthKits: 0, nitroMult: 0, superCoins: false, nitroPower: 0,
+        info: 'Você tem meu respeito. Parabéns Corajoso!',
+        warning: 'No modo EXTREMO não nascem kits de vida! Boa sorte.'
+    }
+};
+
+// fim das dificuldades
+// -----------------------------------------------
+
 // Loop com passo fixo de 60 atualizações por segundo (igual em qualquer monitor)
 const TICK_MS = 1000 / 60;
 let lastFrameTime = performance.now();
@@ -144,6 +185,14 @@ let saveData = JSON.parse(localStorage.getItem('drift_chase_save')) || DEFAULT_S
 
 function saveGame() {
     localStorage.setItem('drift_chase_save', JSON.stringify(saveData));
+}
+
+if (!DIFFICULTY_LEVELS[saveData.difficulty]) {
+    saveData.difficulty = 'MEDIUM';
+}
+
+function getDifficulty() {
+    return DIFFICULTY_LEVELS[saveData.difficulty] || DIFFICULTY_LEVELS.MEDIUM;
 }
 
 // Available Cars Specifications
@@ -630,6 +679,7 @@ class Vehicle {
         this.isHandbraking = false;
         this.isDrifting = false;
         this.isNitro = false;
+        this.nitroPower = 1;
         this.lastRearLeft = null;
         this.lastRearRight = null;
     }
@@ -641,8 +691,8 @@ class Vehicle {
 
         if (inputs.nitro && this.nitroEnergy > 0) {
             this.isNitro = true;
-            currentAccel *= 2.2;
-            currentTopSpeed *= 1.45;
+            currentAccel *= 1 + 1.2 * this.nitroPower;
+            currentTopSpeed *= 1 + 0.45 * this.nitroPower;
             this.nitroEnergy = Math.max(0, this.nitroEnergy - 0.016);
         } else {
             this.isNitro = false;
@@ -1379,7 +1429,8 @@ class GameEngine {
         const speed = Math.hypot(this.player.vx, this.player.vy);
         const heading = Math.atan2(this.player.vy, this.player.vx);
 
-        while (this.coins.length < COIN_TARGET_COUNT) {
+        const coinTarget = Math.round(COIN_TARGET_COUNT * getDifficulty().coinMult);
+        while (this.coins.length < coinTarget) {
             // Em movimento, 80% das moedas nascem na frente do carro (cone de ~160°)
             let angle;
             if (speed > 2 && Math.random() < 0.8) {
@@ -1393,10 +1444,11 @@ class GameEngine {
             const y = this.player.y + Math.sin(angle) * dist;
 
             const roll = Math.random();
-            if (roll < SUPER_COIN_CHANCE) {
+            const superChance = getDifficulty().superCoins ? SUPER_COIN_CHANCE : 0;
+            if (roll < superChance) {
                 // Super moeda (sozinha)
                 this.coins.push(new CoinPickup(x, y, COIN_BASE_VALUE * SUPER_COIN_MULTIPLIER, true));
-            } else if (roll < SUPER_COIN_CHANCE + COIN_CLUSTER_CHANCE) {
+            } else if (roll < superChance + COIN_CLUSTER_CHANCE) {
                 // Grupo de 2 até 3 moedas bem próximas
                 const count = 2 + Math.floor(Math.random() * (COIN_CLUSTER_MAX - 1));
                 for (let k = 0; k < count; k++) {
@@ -1416,7 +1468,7 @@ class GameEngine {
         this.healthPickups = this.healthPickups.filter(h =>
             Math.hypot(h.x - this.player.x, h.y - this.player.y) < HEALTH_PICKUP_DESPAWN_RADIUS);
     
-        while (this.healthPickups.length < HEALTH_PICKUP_TARGET_COUNT) {
+        while (this.healthPickups.length < getDifficulty().healthKits) {
             const angle = Math.random() * Math.PI * 2;
             const dist = 200 + Math.random() * (HEALTH_PICKUP_SPAWN_RADIUS - 200);
             const x = this.player.x + Math.cos(angle) * dist;
@@ -1437,8 +1489,9 @@ class GameEngine {
         upgradedConfig.maxHealth += (saveData.upgrades.armor || 0) * 25;
     
         this.player = new Vehicle(0, 0, upgradedConfig);
-        this.player.nitroEnergy = upgradedConfig.nitroMax;
-        this.player.nitroMax = upgradedConfig.nitroMax;
+        this.player.nitroMax = upgradedConfig.nitroMax * getDifficulty().nitroMult;
+        this.player.nitroEnergy = this.player.nitroMax;
+        this.player.nitroPower = getDifficulty().nitroPower;
     
         this.cops = [];
         this.coins = [];
@@ -1458,8 +1511,9 @@ class GameEngine {
         this.driftComboScore = 0;
         this.driftMultiplier = 1.0;
 
-        this.spawnCop('STANDARD');
-        this.spawnCop('STANDARD');
+        for (let i = 0; i < getDifficulty().initialCops; i++) {
+            this.spawnCop('STANDARD');
+        }
     
         this.maintainProps();
         this.maintainCoins();
@@ -1552,8 +1606,9 @@ class GameEngine {
         this.copSpawnTimer += 1 / 60;
     
         // Dynamic Cop Spawns (increasing intensity)
-        const spawnInterval = Math.max(4, 12 - Math.floor(this.survivalTimer / 20));
-        if (this.copSpawnTimer >= spawnInterval && this.cops.length < 12) {
+        const diff = getDifficulty();
+        const spawnInterval = Math.max(diff.minSpawnInterval, diff.baseSpawnInterval - Math.floor(this.survivalTimer / 20));
+        if (this.copSpawnTimer >= spawnInterval && this.cops.length < diff.maxCops) {
             this.copSpawnTimer = 0;
             const r = Math.random();
             const copType = r > 0.7 ? 'SWAT' : (r > 0.4 ? 'INTERCEPTOR' : 'STANDARD');
@@ -1614,13 +1669,13 @@ class GameEngine {
     
                 // Dano no policial: com nitro ele é destruído na batida
                 if (this.player.isNitro) {
-                    cop.health -= 60;
+                    cop.health -= 60 * this.player.nitroPower;
                 } else {
                     cop.health -= 0.4;
                 }
 
                 // Dano no jogador: SEMPRE COP_HIT_DAMAGE (25) por batida, com ou sem nitro
-                if (cop.hitCooldown <= 0) {
+                if (cop.hitCooldown <= 0 && cop.health > 0) {
                     this.player.health -= COP_HIT_DAMAGE;
                     cop.hitCooldown = COP_HIT_COOLDOWN;
 
@@ -1637,15 +1692,45 @@ class GameEngine {
                     );
                 }
             }
-    
-            // Cop vs Cop Collisions
+
+            // Cop vs Cop: só se destroem em batida de frente (os dois apontando um para o outro)
             for (let j = i - 1; j >= 0; j--) {
                 const otherCop = this.cops[j];
-                const dC = Math.hypot(cop.x - otherCop.x, cop.y - otherCop.y);
-                if (dC < 32) {
-                    cop.health -= 1.5;
-                    otherCop.health -= 1.5;
-                    this.particles.spawnSpark((cop.x + otherCop.x) / 2, (cop.y + otherCop.y) / 2);
+                const cx = otherCop.x - cop.x;
+                const cy = otherCop.y - cop.y;
+                const dC = Math.hypot(cx, cy) || 0.001;
+                const nx = cx / dC;
+                const ny = cy / dC;
+
+                // Separação: se estão mais perto que o mínimo, cada um é empurrado metade da sobreposição
+                if (dC < COP_MIN_DISTANCE) {
+                    const push = (COP_MIN_DISTANCE - dC) / 2;
+                    cop.x -= nx * push;
+                    cop.y -= ny * push;
+                    otherCop.x += nx * push;
+                    otherCop.y += ny * push;
+
+                    // Remove a velocidade de um contra o outro, para não ficarem se empurrando
+                    const relV = (cop.vx - otherCop.vx) * nx + (cop.vy - otherCop.vy) * ny;
+                    if (relV > 0) {
+                        cop.vx -= nx * relV * 0.5;
+                        cop.vy -= ny * relV * 0.5;
+                        otherCop.vx += nx * relV * 0.5;
+                        otherCop.vy += ny * relV * 0.5;
+                    }
+                }
+
+                // Dano: só em batida de frente (os dois apontando um para o outro)
+                if (dC < COP_MIN_DISTANCE + 6) {
+                    // 1 = olhando direto para o outro | 0 = de lado | negativo = de costas
+                    const aimA = Math.cos(cop.angle) * nx + Math.sin(cop.angle) * ny;
+                    const aimB = -(Math.cos(otherCop.angle) * nx + Math.sin(otherCop.angle) * ny);
+
+                    if (aimA > 0.5 && aimB > 0.5) {
+                        cop.health -= 1.5;
+                        otherCop.health -= 1.5;
+                        this.particles.spawnSpark((cop.x + otherCop.x) / 2, (cop.y + otherCop.y) / 2);
+                    }
                 }
             }
     
@@ -1712,8 +1797,13 @@ class GameEngine {
         document.getElementById('hudHealthText').innerText = `${Math.max(0, Math.ceil(this.player.health))} / ${this.player.maxHealth}`;
         document.getElementById('hudHealthBar').style.width = `${Math.max(0, (this.player.health / this.player.maxHealth) * 100)}%`;
 
-        document.getElementById('hudNitroText').innerText = `${Math.ceil((this.player.nitroEnergy / this.player.nitroMax) * 100)}%`;
-        document.getElementById('hudNitroBar').style.width = `${(this.player.nitroEnergy / this.player.nitroMax) * 100}%`;
+        if (this.player.nitroMax > 0) {
+            document.getElementById('hudNitroText').innerText = `${Math.ceil((this.player.nitroEnergy / this.player.nitroMax) * 100)}%`;
+            document.getElementById('hudNitroBar').style.width = `${(this.player.nitroEnergy / this.player.nitroMax) * 100}%`;
+        } else {
+            document.getElementById('hudNitroText').innerText = 'INDISPONÍVEL';
+            document.getElementById('hudNitroBar').style.width = '0%';
+        }
 
         document.getElementById('hudScore').innerText = this.score;
         document.getElementById('hudCoins').innerText = `$${this.coinsEarnedSession}`;
@@ -1996,6 +2086,43 @@ document.getElementById('btnUpgradeArmor').onclick = () => {
         updateMenuData();
     }
 };
+
+function renderDifficultySelector() {
+    const box = document.getElementById('difficultyButtons');
+    const info = document.getElementById('difficultyInfo');
+    const warn = document.getElementById('difficultyWarning');
+    if (!box) {
+        return
+    }
+    box.innerHTML = '';
+
+    Object.keys(DIFFICULTY_LEVELS).forEach(key => {
+        const d = DIFFICULTY_LEVELS[key];
+        const selected = saveData.difficulty === key;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = d.label;
+        b.className = `py-2.5 rounded-xl font-black font-orbitron text-xs border-2 transition ${selected ? d.activeClass : 'bg-slate-900/70 border-slate-700 text-slate-400 hover:border-slate-500'
+            }`;
+        b.onclick = () => {
+            saveData.difficulty = key;
+            saveGame();
+            renderDifficultySelector();
+        };
+        box.appendChild(b);
+    });
+
+    const cur = getDifficulty();
+    info.textContent = cur.info;
+    if (cur.warning) {
+        warn.textContent = cur.warning;
+        warn.classList.remove('hidden');
+    } else {
+        warn.classList.add('hidden');
+    }
+}
+
+renderDifficultySelector();
 
 // Main Animation Loop
 updateMenuData();
