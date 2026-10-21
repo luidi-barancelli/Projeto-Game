@@ -1,0 +1,19 @@
+- Quanto maior a dificuldade, mais dinheiro ganha ao perder o jogo
+- Tentar melhorar o máximo possível o drift e a fisica do jogo
+- Adicionar a Loja e poder comprar os novos carros, além de upar cada um em especifico com as skils gerais ( adicionar as skils gerais )
+    - Velocidade
+    - Durabilidade
+    - Qntd Nitro
+    - Etc ( pensar mais )
+- adicionar fundo, poder escolher e comprar na loja também
+- Adicionar personalizações para o jogo
+    - Cor da fumaça que sai ao derrapar
+    - Neon e Led nos carros
+    - Sirene no carro da policia
+    - Tocar rádio com musicas que o usuário pode adicionar ou pegar umas pré definidas ( sem direito autoral )
+- Ranking online ( Validar se não é tão dificil )
+- Criação de conta e salvamento em cache no navegador do seu save ( Até 3 locais de save )
+
+- Qualquer ideia não citada, adicionar.
+
+// Luidi 21/10/26
