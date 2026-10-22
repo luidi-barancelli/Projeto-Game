@@ -24,6 +24,8 @@ const DRIFT_MULT_STEP = 0.006;       // quanto o multiplicador sobe por frame de
 const CHAIN_RECOVERY_FRAMES = 300;   // janela pra recuperar o combo perdido (300 frames = 5 s)
 const RECOVERY_POINTS = 650;         // pontos (moedas/policiais) que recuperam o combo
 const RECOVERY_DRIFT_POINTS = 300;   // pontos brutos de drift que recuperam o combo
+const HEADON_AIM_MIN = 0.5;           // quão de frente o carro do jogador precisa estar pro policial (1 = em cheio)
+const HEADON_MIN_CLOSING_SPEED = 2;   // velocidade mínima de aproximação pra contar como batida de frente
 
 // -----------------------------------------------
 // dificuldades do game abaixo
@@ -1795,31 +1797,47 @@ class GameEngine {
             }
     
             // Cop vs Player Collision
-            const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
+            const pdx = cop.x - this.player.x;
+            const pdy = cop.y - this.player.y;
+            const distToPlayer = Math.hypot(pdx, pdy);
             if (distToPlayer < 36) {
-                this.camera.shake = 18;
+                const pnx = pdx / (distToPlayer || 1);
+                const pny = pdy / (distToPlayer || 1);
+
+                // Batida de frente: a frente do jogador aponta pro policial e os dois estão se aproximando.
+                // Calculado ANTES do knockback, que muda a posição e a velocidade do policial.
+                const playerAim = Math.cos(this.player.angle) * pnx + Math.sin(this.player.angle) * pny;
+                const closing = (this.player.vx - cop.vx) * pnx + (this.player.vy - cop.vy) * pny;
+                const headOn = playerAim > HEADON_AIM_MIN && closing > HEADON_MIN_CLOSING_SPEED;
+
+                this.camera.shake = headOn ? 24 : 18;
                 this.particles.spawnSpark((cop.x + this.player.x) / 2, (cop.y + this.player.y) / 2);
-    
-                // Batida: joga o policial pra trás e faz ele recuar antes de atacar de novo
-                if (cop.retreatTimer <= 0) {
-                    const kdx = cop.x - this.player.x;
-                    const kdy = cop.y - this.player.y;
-                    const kd = Math.hypot(kdx, kdy) || 1;
-                    cop.x = this.player.x + (kdx / kd) * 40;
-                    cop.y = this.player.y + (kdy / kd) * 40;
-                    cop.vx = (kdx / kd) * COP_KNOCKBACK_SPEED;
-                    cop.vy = (kdy / kd) * COP_KNOCKBACK_SPEED;
-                    cop.retreatTimer = COP_RETREAT_FRAMES;
-                }
-    
-                // Dano no policial: com nitro ele é destruído na batida
-                if (this.player.isNitro) {
-                    cop.health -= 60 * this.player.nitroPower;
+
+                if (headOn) {
+                    // O policial explode (qualquer tipo) e o jogador não leva dano
+                    cop.health = 0;
                 } else {
-                    cop.health -= 0.4;
+                    // Batida: joga o policial pra trás e faz ele recuar antes de atacar de novo
+                    if (cop.retreatTimer <= 0) {
+                        const kdx = cop.x - this.player.x;
+                        const kdy = cop.y - this.player.y;
+                        const kd = Math.hypot(kdx, kdy) || 1;
+                        cop.x = this.player.x + (kdx / kd) * 40;
+                        cop.y = this.player.y + (kdy / kd) * 40;
+                        cop.vx = (kdx / kd) * COP_KNOCKBACK_SPEED;
+                        cop.vy = (kdy / kd) * COP_KNOCKBACK_SPEED;
+                        cop.retreatTimer = COP_RETREAT_FRAMES;
+                    }
+
+                    // Dano no policial (batida de lado ou de costas)
+                    if (this.player.isNitro) {
+                        cop.health -= 60 * this.player.nitroPower;
+                    } else {
+                        cop.health -= 0.4;
+                    }
                 }
 
-                // Dano no jogador: SEMPRE COP_HIT_DAMAGE (25) por batida, com ou sem nitro
+                // Dano no jogador: não acontece se o policial morreu na batida
                 if (cop.hitCooldown <= 0 && cop.health > 0) {
                     this.player.health -= COP_HIT_DAMAGE;
                     this.loseDriftChain();
@@ -1947,6 +1965,34 @@ class GameEngine {
         }
     
         this.updateHUD();
+    }
+
+    togglePause() {
+        if (this.state === 'PLAYING') {
+            this.state = 'PAUSED';
+            for (const k in this.inputs) this.inputs[k] = false; // solta todas as teclas
+            document.getElementById('pauseModal').classList.remove('hidden');
+        } else if (this.state === 'PAUSED') {
+            this.state = 'PLAYING';
+            document.getElementById('pauseModal').classList.add('hidden');
+        }
+    }
+
+    // Sai da partida pelo pause: salva dinheiro e recorde, como num game over, e volta pro menu
+    quitToMenu() {
+        if (this.state !== 'PAUSED') {
+            return
+        };
+
+        document.getElementById('pauseModal').classList.add('hidden');
+        this.triggerGameOver();
+        this.state = 'MENU';
+
+        clearTimeout(this.driftHideTimer);
+        document.getElementById('driftComboContainer').style.opacity = '0';
+        document.getElementById('gameOverModal').classList.add('hidden');
+        document.getElementById('mainMenu').classList.remove('hidden');
+        updateMenuData();
     }
 
     showDriftChain(barRatio) {
@@ -2179,6 +2225,7 @@ resizeCanvas();
 
 // Keyboard Event Listeners
 window.addEventListener('keydown', (e) => {
+    if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) game.togglePause();
     if (e.code === 'KeyW' || e.code === 'ArrowUp') game.inputs.up = true;
     if (e.code === 'KeyS' || e.code === 'ArrowDown') game.inputs.down = true;
     if (e.code === 'KeyA' || e.code === 'ArrowLeft') game.inputs.left = true;
@@ -2298,6 +2345,10 @@ document.getElementById('btnGoMenu').onclick = () => {
     updateMenuData();
 };
 
+document.getElementById('btnPause').onclick = () => game.togglePause();
+document.getElementById('btnResume').onclick = () => game.togglePause();
+document.getElementById('btnPauseMenu').onclick = () => game.quitToMenu();
+
 document.getElementById('btnOpenGarage').onclick = () => {
     updateMenuData();
     selectGarageCar(saveData.selectedCar || 0);
@@ -2388,12 +2439,19 @@ renderDifficultySelector();
 // Main Animation Loop
 updateMenuData();
 
-function gameLoop(now) {
+// Avança o jogo com passo fixo, usando o tempo real (por isso pode ser chamado por mais de um relógio)
+function runFrame(now) {
     let delta = now - lastFrameTime;
+    if (delta < 0) {
+        delta = 0
+    };
+
     lastFrameTime = now;
 
-    // Se a aba ficou em segundo plano, não tenta "compensar" o tempo perdido
-    if (delta > 100) delta = 100;
+    // Proteção contra pulos enormes de tempo
+    if (delta > 100) {
+        delta = 100
+    };
 
     tickAccumulator += delta;
 
@@ -2404,12 +2462,36 @@ function gameLoop(now) {
         ticked = true;
     }
 
-    // Só desenha quando houve atualização, porque as partículas e as
-    // animações dos itens avançam dentro do render()
-    if (ticked) game.render();
-
-    requestAnimationFrame(gameLoop);
+    // Só desenha quando houve atualização (partículas e itens animam dentro do render()).
+    // Pausado ou com a aba escondida, não desenha: a tela fica congelada / economiza processamento.
+    if (ticked && game.state !== 'PAUSED' && !document.hidden) {
+        game.render()
+    };
 }
 
+function gameLoop() {
+    runFrame(performance.now());
+    requestAnimationFrame(gameLoop);
+}
 requestAnimationFrame(gameLoop);
+
+// Relógio em Web Worker: o navegador não pausa ele quando a aba fica em segundo plano.
+// Só assume o jogo enquanto a aba está escondida; com ela visível, quem manda é o requestAnimationFrame.
+try {
+    const workerCode = 'setInterval(() => postMessage(0), 1000 / 60);';
+    const tickWorker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+    tickWorker.onmessage = () => {
+        if (document.hidden) runFrame(performance.now());
+    };
+} catch (e) {
+    // Sem Worker, o jogo volta a parar quando a aba fica escondida
+}
+
+// Ao perder o foco, solta as teclas (senão o carro fica acelerando sozinho, já que o keyup se perde)
+window.addEventListener('blur', () => {
+    for (const k in game.inputs) {
+        game.inputs[k] = false;
+    }
+});
+
 //67

@@ -143,21 +143,315 @@ body {
 }
 
 @keyframes skillPop {
-0% {
-    transform: scale(1.25);
-} 100% {
-    transform: scale(1);
-}
+    0% {
+        transform: scale(1.25);
+    } 100% {
+        transform: scale(1);
+    }
 }
 
 @media (max-width: 768px) {
     .skill-card {
-    left: 0.75rem;
-    top: 26%;
-    min-width: 170px;
+        left: 0.75rem;
+        top: 26%;
+        min-width: 170px;
+    }
 }
 
 .skill-points {
     font-size: 1.9rem;
 }
+
+.menu-panel {
+    position: relative;
+    padding: 30px 28px 22px;
+    border-radius: 28px;
+    background: linear-gradient(160deg, rgba(10, 16, 32, 0.72), rgba(10, 16, 32, 0.42));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+    animation: menuIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* fio de luz no topo, vermelho e azul como a sirene */
+.menu-panel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ef4444, #3b82f6, #06b6d4);
+}
+
+.menu-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    margin-bottom: 14px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #67e8f9;
+    background: rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.menu-tag-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+    animation: dotBlink 1s steps(2, jump-none) infinite;
+}
+
+/* logo */
+.menu-logo {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    font-weight: 900;
+    font-style: italic;
+    line-height: 0.92;
+    letter-spacing: 0.04em;
+    transform: skewX(-6deg);
+}
+
+.menu-logo-top {
+    font-size: clamp(2.2rem, 6vw, 3.4rem);
+    color: #fff;
+    text-shadow: 0 4px 24px rgba(255, 255, 255, 0.25);
+}
+
+.menu-logo-bottom {
+    font-size: clamp(3.2rem, 9vw, 5rem);
+    background: linear-gradient(90deg, #22d3ee, #6366f1 60%, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.45));
+}
+
+/* barra de sirene */
+.menu-siren {
+    height: 4px;
+    margin: 12px 0 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #ef4444 0 50%, #3b82f6 50% 100%);
+    background-size: 200% 100%;
+    animation: sirenSweep 1.1s steps(2, jump-none) infinite;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.5);
+}
+
+.menu-tagline {
+    margin: 0 0 22px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
+/* estatísticas */
+.menu-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left-width: 3px;
+}
+
+.menu-stat-gold {
+    border-left-color: #fbbf24;
+}
+
+.menu-stat-green {
+    border-left-color: #34d399;
+}
+
+.menu-stat-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.menu-stat-value {
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.menu-stat-gold .menu-stat-value {
+    color: #fbbf24;
+    text-shadow: 0 0 14px rgba(251, 191, 36, 0.4);
+}
+
+.menu-stat-green .menu-stat-value {
+    color: #34d399;
+}
+
+.menu-section-title {
+    margin: 0 0 8px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+/* botão principal */
+.menu-play {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    transform: skewX(-8deg);
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(90deg, #06b6d4, #3b82f6);
+    box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    animation: playPulse 2.4s ease-in-out infinite;
+}
+
+.menu-play:hover {
+    transform: skewX(-8deg) translateY(-2px);
+    box-shadow: 0 14px 38px rgba(6, 182, 212, 0.6);
+}
+
+.menu-play:active {
+    transform: skewX(-8deg) translateY(1px);
+}
+
+.menu-play-inner {
+    display: block;
+    padding: 16px 0;
+    transform: skewX(8deg);
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: 0.25em;
+    color: #04101c;
+}
+
+/* brilho passando */
+.menu-play::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    left: -60%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    animation: playShine 3s ease-in-out infinite;
+}
+
+/* botões secundários */
+.menu-btn {
+    padding: 12px 8px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.menu-btn:hover {
+    color: #fff;
+    border-color: #22d3ee;
+    background: rgba(6, 182, 212, 0.12);
+    transform: translateY(-1px);
+}
+
+.menu-hint {
+    margin: 18px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    text-align: center;
+    font-size: 0.68rem;
+    color: #64748b;
+}
+
+.menu-hint b {
+    color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+    .menu-hint {
+        display: none;
+    }
+
+    .menu-panel {
+        padding: 22px 18px 18px;
+    }
+}
+
+@keyframes menuIn {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes dotBlink {
+    50% {
+        opacity: 0.25;
+    }
+}
+
+@keyframes sirenSweep {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 100% 0;
+    }
+}
+
+@keyframes playShine {
+
+    0%,
+    55% {
+        left: -60%;
+    }
+
+    100% {
+        left: 140%;
+    }
+}
+
+@keyframes playPulse {
+    50% {
+        box-shadow: 0 10px 42px rgba(6, 182, 212, 0.65);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .menu-panel,
+    .menu-tag-dot,
+    .menu-siren,
+    .menu-play,
+    .menu-play::after {
+        animation: none;
+    }
 }
