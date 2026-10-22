@@ -255,20 +255,20 @@ const CAR_CATALOG = [
     makeCar(0, 'Azulão', 'bluecar', 0.40, '#3b82f6', 0, 10.5, 0.22, 0.055, 0.94, 100, 3.0),
     makeCar(1, 'Verdão', 'greencar', 0.40, '#22c55e', 400, 11.0, 0.23, 0.056, 0.93, 105, 3.2),
     makeCar(2, 'Velhinho', 'old', 0.47, '#a16207', 600, 10.0, 0.20, 0.050, 0.95, 130, 3.0),
-    makeCar(3, 'Laranjada', 'laranjada', 1.0, '#f97316', 900, 11.5, 0.25, 0.060, 0.90, 100, 3.5),
-    makeCar(4, 'Conversível', 'conversivel', 0.66, '#ef4444', 1400, 12.0, 0.26, 0.062, 0.90, 95, 3.5),
-    makeCar(5, 'Brancona', 'brancona', 0.50, '#e2e8f0', 1800, 11.0, 0.24, 0.050, 0.95, 160, 3.5),
+    makeCar(3, 'Skytopia', 'laranjada', 1.0, '#f97316', 900, 11.5, 0.25, 0.060, 0.90, 100, 3.5),
+    makeCar(4, 'LaAudita', 'conversivel', 0.66, '#ef4444', 1400, 12.0, 0.26, 0.062, 0.90, 95, 3.5),
+    makeCar(5, 'LaBrutal', 'brancona', 0.50, '#e2e8f0', 1800, 11.0, 0.24, 0.050, 0.95, 160, 3.5),
     makeCar(6, 'Black Car', 'blackcar', 0.46, '#1e293b', 2200, 12.5, 0.27, 0.060, 0.92, 110, 4.0),
     makeCar(7, 'Black Car II', 'blackcar2', 0.56, '#334155', 2600, 12.8, 0.28, 0.060, 0.91, 115, 4.0),
     makeCar(8, 'R3X', 'r3x', 0.68, '#a855f7', 3200, 13.0, 0.29, 0.064, 0.89, 105, 4.2),
-    makeCar(9, 'McQueen', 'mcqueen', 0.67, '#dc2626', 3800, 13.0, 0.30, 0.066, 0.86, 110, 4.2),
-    makeCar(10, 'Nissan GTR', 'nissangtr', 0.50, '#94a3b8', 4500, 13.8, 0.32, 0.062, 0.90, 115, 4.5),
+    makeCar(9, 'McKing', 'mcqueen', 0.67, '#dc2626', 3800, 13.0, 0.30, 0.066, 0.86, 110, 4.2),
+    makeCar(10, 'Nissan TRG', 'nissangtr', 0.50, '#94a3b8', 4500, 13.8, 0.32, 0.062, 0.90, 115, 4.5),
     makeCar(11, 'Ambulância', 'ambulancia', 0.94, '#f8fafc', 5000, 11.5, 0.26, 0.048, 0.95, 190, 3.5),
     makeCar(12, 'Caminhão', 'caminhao', 0.47, '#eab308', 5500, 11.0, 0.24, 0.042, 0.96, 220, 3.5),
     makeCar(13, 'Bombeiro', 'caminhaobombeiro', 0.25, '#dc2626', 6500, 11.5, 0.26, 0.040, 0.96, 240, 4.0),
     makeCar(14, 'Lambo Black', 'lamboblack', 0.56, '#0f172a', 8000, 14.5, 0.34, 0.060, 0.92, 120, 5.0),
-    makeCar(15, 'LaFerrari', 'laferrari', 0.56, '#ef4444', 10000, 15.0, 0.35, 0.062, 0.91, 120, 5.0),
-    makeCar(16, 'F1', 'f1', 0.56, '#ef4444', 12000, 15.5, 0.38, 0.070, 0.93, 85, 5.0)
+    makeCar(15, 'LaFernario', 'laferrari', 0.56, '#ef4444', 10000, 15.0, 0.35, 0.062, 0.91, 120, 5.0),
+    makeCar(16, 'F10', 'f1', 0.56, '#ef4444', 12000, 15.5, 0.38, 0.070, 0.93, 85, 5.0)
 ];
 
 const SKILL_MAX = 10;
@@ -637,6 +637,8 @@ class ParticleSystem {
     updateAndDraw(ctx) {
         this.updateAndDrawFx(ctx);
 
+        drawCustomTrail(ctx);
+
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
@@ -813,10 +815,11 @@ class Vehicle {
                 game.skidmarks.addSkidLine(this.lastRearLeft, rl, SKIDMARK_ALPHA);
                 game.skidmarks.addSkidLine(this.lastRearRight, rr, SKIDMARK_ALPHA);
             }
-            // Spawn smoke particles
+
             for (let i = 0; i < DRIFT_SMOKE_COUNT; i++) {
-                game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2);
-                game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2);
+                const smokeColor = smokeColorFor(this);
+                game.particles.spawnSmoke(rl.x, rl.y, -this.vx * 0.2, -this.vy * 0.2, smokeColor);
+                game.particles.spawnSmoke(rr.x, rr.y, -this.vx * 0.2, -this.vy * 0.2, smokeColor);
             }
         
             game.camera.shake = Math.max(game.camera.shake, DRIFT_CAMERA_SHAKE);
@@ -826,12 +829,16 @@ class Vehicle {
 
         this.lastRearLeft = rl;
         this.lastRearRight = rr;
+
+        emitCustomTrail(this);
     }
 
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
+
+        drawCarNeon(this, ctx);
 
         // Nitro Flame Trail
         if (this.isNitro) {
@@ -875,15 +882,18 @@ class Vehicle {
             ctx.fillRect(this.width / 2 - 2, this.height / 2 - 7, 3, 5);
         }
 
+        drawCarLed(this, ctx);
+
         ctx.restore();
 
         // Headlight Light Cone in world space
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
+        const cone = coneColorFor(this);
         const lightGrad = ctx.createRadialGradient(this.width / 2, 0, 5, this.width / 2 + 120, 0, 120);
-        lightGrad.addColorStop(0, 'rgba(254, 240, 138, 0.25)');
-        lightGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+        lightGrad.addColorStop(0, `rgba(${cone[0]}, ${cone[1]}, ${cone[2]}, 0.25)`);
+        lightGrad.addColorStop(1, `rgba(${cone[0]}, ${cone[1]}, ${cone[2]}, 0)`);
         ctx.fillStyle = lightGrad;
         ctx.beginPath();
         ctx.moveTo(this.width / 2, 0);

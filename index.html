@@ -59,7 +59,10 @@
                     <button id="btnHowToPlay" class="menu-btn font-orbitron">COMO JOGAR</button>
                 </div>
 
-                <button id="btnOpenMusic" class="menu-btn font-orbitron w-full mt-3">MÚSICAS</button>
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <button id="btnOpenCustom" class="menu-btn font-orbitron">PERSONALIZAR</button>
+                    <button id="btnOpenMusic" class="menu-btn font-orbitron">MÚSICAS</button>
+                </div>
         
                 <p class="menu-hint">
                     <b>WASD</b> dirigir &nbsp;•&nbsp; <b>ESPAÇO</b> freio de mão &nbsp;•&nbsp; <b>SHIFT</b> nitro
@@ -211,6 +214,39 @@
             </div>
         </div>
 
+        <div id="customModal"
+            class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col neon-border-cyan">
+                <div class="flex justify-between items-center mb-5">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">PERSONALIZAÇÃO</h2>
+                        <p class="text-slate-400 text-xs md:text-sm">Compre e equipe neon, fumaça, LED e rastros.</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div id="customCashDisplay"
+                            class="bg-slate-900/90 border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-400 font-black font-orbitron text-lg">
+                            $0</div>
+                        <button id="btnCloseCustom"
+                            class="text-slate-400 hover:text-white p-2 text-2xl font-bold">&times;</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-[230px_1fr] gap-5 overflow-y-auto pr-1">
+                    <div id="customCategories" class="flex md:flex-col gap-2 overflow-x-auto"></div>
+                    <div class="flex flex-col gap-4 min-w-0">
+                        <canvas id="customPreview" width="560" height="230"
+                            class="w-full rounded-2xl border border-slate-800"></canvas>
+                        <div>
+                            <h3 id="customCatTitle" class="text-lg font-black font-orbitron text-cyan-400"></h3>
+                            <p id="customCatDesc" class="text-slate-400 text-xs"></p>
+                        </div>
+                        <div id="customOptions" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2"></div>
+                        <button id="btnCustomAction"
+                            class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition">EQUIPAR</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="musicModal"
             class="absolute inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
             <div class="glass-panel p-6 md:p-8 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col neon-border-cyan">
@@ -332,5 +368,6 @@
         <script src="main.js"></script>
         <script src="menu3d.js"></script>
         <script src="sounds/audio.js"></script>
+        <script src="custom.js"></script>
     </body>
 </html>
