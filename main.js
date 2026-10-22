@@ -24,8 +24,15 @@ const DRIFT_MULT_STEP = 0.006;       // quanto o multiplicador sobe por frame de
 const CHAIN_RECOVERY_FRAMES = 300;   // janela pra recuperar o combo perdido (300 frames = 5 s)
 const RECOVERY_POINTS = 650;         // pontos (moedas/policiais) que recuperam o combo
 const RECOVERY_DRIFT_POINTS = 300;   // pontos brutos de drift que recuperam o combo
-const HEADON_AIM_MIN = 0.5;           // quão de frente o carro do jogador precisa estar pro policial (1 = em cheio)
-const HEADON_MIN_CLOSING_SPEED = 2;   // velocidade mínima de aproximação pra contar como batida de frente
+const CAR_BASE_LENGTH = 115;
+const COP_BASE_LENGTH = 200;
+const POLICE_SKIN = new Image();
+POLICE_SKIN.src = 'skins/police/skinpolicia.png';
+
+const COP_LIGHTS = [
+    { x1: 213, x2: 239, y1: 248, y2: 263, color: '#ff2a2a', glowStart: 'rgba(255, 40, 40, 0.75)', glowEnd: 'rgba(255, 40, 40, 0)' },
+    { x1: 258, x2: 286, y1: 249, y2: 262, color: '#2a6bff', glowStart: 'rgba(40, 110, 255, 0.75)', glowEnd: 'rgba(40, 110, 255, 0)' }
+];
 
 // -----------------------------------------------
 // dificuldades do game abaixo
@@ -37,7 +44,6 @@ const DIFFICULTY_LEVELS = {
         initialCops: 2, baseSpawnInterval: 5, minSpawnInterval: 4, maxCops: 6,
         coinMult: 1.4, healthKits: 3, nitroMult: 1, superCoins: true, nitroPower: 1,
         copAI: { flankChance: 0.25, ambushChance: 0.10, leadFrames: 25, separation: 1.6 },
-        payoutMult: 1.0,
         info: 'Se você não aguenta a pressão!'
     },
     MEDIUM: {
@@ -46,7 +52,6 @@ const DIFFICULTY_LEVELS = {
         initialCops: 4, baseSpawnInterval: 4, minSpawnInterval: 3, maxCops: 8,
         coinMult: 1, healthKits: 2, nitroMult: 1, superCoins: true, nitroPower: 1,
         copAI: { flankChance: 0.30, ambushChance: 0.20, leadFrames: 40, separation: 1.5 },
-        payoutMult: 1.5,
         info: 'Você aguenta a pressão, mas ainda tem medo!'
     },
     HARD: {
@@ -55,7 +60,6 @@ const DIFFICULTY_LEVELS = {
         initialCops: 6, baseSpawnInterval: 3, minSpawnInterval: 2, maxCops: 9,
         coinMult: 0.7, healthKits: 0, nitroMult: 0.5, superCoins: true, nitroPower: 0.5,
         copAI: { flankChance: 0.30, ambushChance: 0.30, leadFrames: 55, separation: 1.4 },
-        payoutMult: 2.5,
         info: 'Você é impressionante. Parabéns!',
         warning: 'No modo DIFÍCIL não nascem kits de vida!'
     },
@@ -67,7 +71,6 @@ const DIFFICULTY_LEVELS = {
         comboRecovery: false, // indica se recupera ou não o combo perdido, nesse caso
         // na dificuldade EXTREME, nunca recupera
         copAI: { flankChance: 0.30, ambushChance: 0.45, leadFrames: 75, separation: 1.3 },
-        payoutMult: 4.0,
         info: 'Você tem meu respeito. Parabéns Corajoso!',
         warning: 'No modo EXTREMO não nascem kits de vida! Boa sorte.'
     }
@@ -107,86 +110,113 @@ const SKIDMARK_ALPHA = 0.45;
 class AudioEngine {
     constructor() {
         this.ctx = null;
-        this.isMuted = false;
-        this.engineOsc = null;
-        this.engineGain = null;
     }
 
     init() {
-        if (this.ctx) return;
+        if (this.ctx) {
+            return;
+        }
+
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
+        if (!AudioCtx) {
+            return;
+        }
+
         this.ctx = new AudioCtx();
-
-        // Continuous Engine Hum Oscillator
-        try {
-            this.engineOsc = this.ctx.createOscillator();
-            this.engineGain = this.ctx.createGain();
-            this.engineOsc.type = 'sawtooth';
-            this.engineOsc.frequency.setValueAtTime(40, this.ctx.currentTime);
-            this.engineGain.gain.setValueAtTime(0.02, this.ctx.currentTime);
-            this.engineOsc.connect(this.engineGain);
-            this.engineGain.connect(this.ctx.destination);
-            this.engineOsc.start();
-        } catch(e) {}
-    }
-    // linha auruda 67n 42 for two sixseven
-    updateEnginePitch(speedRatio) {
-        if (!this.ctx || !this.engineOsc) return;
-        const freq = 30 + speedRatio * 160;
-        this.engineOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.05);
-    }
-
-    playSkidSound() {
-        if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * 0.1;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
+        this.noiseBuffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 2, this.ctx.sampleRate);
+        const data = this.noiseBuffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
             data[i] = Math.random() * 2 - 1;
         }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
+
+        this.siren = new Audio('sounds/somsirene.mp3');
+        this.siren.loop = true;
+        this.siren.volume = 0;
+        this.active = false;
+    }
+
+    setActive(on) {
+        this.active = on;
+        if (!on && this.siren) {
+            this.siren.pause();
+        }
+    }
+
+    updateSiren(copDist) {
+        if (!this.siren || !this.active) {
+            return;
+        }
+
+        if (musicPlayer.currentId !== null) {
+            this.siren.pause();
+            return;
+        }
+
+        const closeness = Math.min(1, Math.max(0, 1 - copDist / 1000));
+        this.siren.volume = closeness * 0.5;
+
+        if (closeness > 0.02 && this.siren.paused) {
+            this.siren.play();
+        }
+        if (closeness <= 0.02 && !this.siren.paused) {
+            this.siren.pause();
+        }
+    }
+
+    playNoiseBurst(freq, duration, volume, type) {
+        if (!this.ctx) {
+            return;
+        }
+
+        const t = this.ctx.currentTime;
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.noiseBuffer;
         const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 1200;
+        filter.type = type;
+        filter.frequency.setValueAtTime(freq, t);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(40, freq / 8), t + duration);
         const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
-        noise.connect(filter);
+        gain.gain.setValueAtTime(volume, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        src.connect(filter);
         filter.connect(gain);
         gain.connect(this.ctx.destination);
-        noise.start();
+        src.start(t, Math.random());
+        src.stop(t + duration);
+    }
+
+    playTone(type, f1, f2, duration, volume, delay = 0) {
+        if (!this.ctx) {
+            return;
+        }
+
+        const t = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(f1, t);
+        osc.frequency.exponentialRampToValueAtTime(f2, t + duration);
+        gain.gain.setValueAtTime(volume, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + duration);
     }
 
     playExplosion() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.4);
+        this.playNoiseBurst(1800, 0.9, 0.35, 'lowpass');
+        this.playTone('sine', 110, 25, 0.6, 0.4);
+    }
+
+    playHit() {
+        this.playNoiseBurst(900, 0.18, 0.25, 'lowpass');
+        this.playTone('square', 160, 60, 0.12, 0.12);
     }
 
     playCoin() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(987.77, this.ctx.currentTime); // B5
-        osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08); // E6
-        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+        this.playTone('sine', 988, 988, 0.08, 0.1);
+        this.playTone('sine', 1319, 1319, 0.18, 0.1, 0.08);
     }
 }
 
@@ -215,65 +245,53 @@ function getDifficulty() {
     return DIFFICULTY_LEVELS[saveData.difficulty] || DIFFICULTY_LEVELS.MEDIUM;
 }
 
-// Available Cars Specifications
+function makeCar(id, name, skin, ratio, color, price, topSpeed, accel, handling, driftGrip, maxHealth, nitroMax, size = 1) {
+    const img = new Image();
+    img.src = `skins/${skin}-removebg-preview.png`;
+    return { id, name, price, color, accent: '#ffffff', ratio, img, topSpeed, accel, handling, driftGrip, maxHealth, nitroMax, size };
+}
+
 const CAR_CATALOG = [
-    {
-        id: 0,
-        name: 'Rookie Coupe',
-        desc: 'Nimble tuner car with balanced drift mechanics.',
-        price: 0,
-        color: '#06b6d4',
-        accent: '#ffffff',
-        topSpeed: 10.5,
-        accel: 0.22,
-        handling: 0.055,
-        driftGrip: 0.94,
-        maxHealth: 100,
-        nitroMax: 3.0
-    },
-    {
-        id: 1,
-        name: 'Drift Spec RX',
-        desc: 'Tail-happy drift monster with high combo potential.',
-        price: 800,
-        color: '#f59e0b',
-        accent: '#1e293b',
-        topSpeed: 12.0,
-        accel: 0.25,
-        handling: 0.065,
-        driftGrip: 0.88,
-        maxHealth: 90,
-        nitroMax: 3.5
-    },
-    {
-        id: 2,
-        name: 'Enforcer V8',
-        desc: 'Heavyweight muscle car that crushes police pursuit.',
-        price: 1500,
-        color: '#ef4444',
-        accent: '#fbcfe8',
-        topSpeed: 11.5,
-        accel: 0.28,
-        handling: 0.048,
-        driftGrip: 0.95,
-        maxHealth: 180,
-        nitroMax: 4.0
-    },
-    {
-        id: 3,
-        name: 'Apex Hypercar',
-        desc: 'Extreme supercar with ultra top speed and nitro output.',
-        price: 3000,
-        color: '#10b981',
-        accent: '#38bdf8',
-        topSpeed: 14.5,
-        accel: 0.35,
-        handling: 0.060,
-        driftGrip: 0.92,
-        maxHealth: 120,
-        nitroMax: 5.0
-    }
+    makeCar(0, 'Azulão', 'bluecar', 0.40, '#3b82f6', 0, 10.5, 0.22, 0.055, 0.94, 100, 3.0),
+    makeCar(1, 'Verdão', 'greencar', 0.40, '#22c55e', 400, 11.0, 0.23, 0.056, 0.93, 105, 3.2),
+    makeCar(2, 'Velhinho', 'old', 0.47, '#a16207', 600, 10.0, 0.20, 0.050, 0.95, 130, 3.0),
+    makeCar(3, 'Laranjada', 'laranjada', 1.0, '#f97316', 900, 11.5, 0.25, 0.060, 0.90, 100, 3.5),
+    makeCar(4, 'Conversível', 'conversivel', 0.66, '#ef4444', 1400, 12.0, 0.26, 0.062, 0.90, 95, 3.5),
+    makeCar(5, 'Brancona', 'brancona', 0.50, '#e2e8f0', 1800, 11.0, 0.24, 0.050, 0.95, 160, 3.5),
+    makeCar(6, 'Black Car', 'blackcar', 0.46, '#1e293b', 2200, 12.5, 0.27, 0.060, 0.92, 110, 4.0),
+    makeCar(7, 'Black Car II', 'blackcar2', 0.56, '#334155', 2600, 12.8, 0.28, 0.060, 0.91, 115, 4.0),
+    makeCar(8, 'R3X', 'r3x', 0.68, '#a855f7', 3200, 13.0, 0.29, 0.064, 0.89, 105, 4.2),
+    makeCar(9, 'McQueen', 'mcqueen', 0.67, '#dc2626', 3800, 13.0, 0.30, 0.066, 0.86, 110, 4.2),
+    makeCar(10, 'Nissan GTR', 'nissangtr', 0.50, '#94a3b8', 4500, 13.8, 0.32, 0.062, 0.90, 115, 4.5),
+    makeCar(11, 'Ambulância', 'ambulancia', 0.94, '#f8fafc', 5000, 11.5, 0.26, 0.048, 0.95, 190, 3.5),
+    makeCar(12, 'Caminhão', 'caminhao', 0.47, '#eab308', 5500, 11.0, 0.24, 0.042, 0.96, 220, 3.5),
+    makeCar(13, 'Bombeiro', 'caminhaobombeiro', 0.25, '#dc2626', 6500, 11.5, 0.26, 0.040, 0.96, 240, 4.0),
+    makeCar(14, 'Lambo Black', 'lamboblack', 0.56, '#0f172a', 8000, 14.5, 0.34, 0.060, 0.92, 120, 5.0),
+    makeCar(15, 'LaFerrari', 'laferrari', 0.56, '#ef4444', 10000, 15.0, 0.35, 0.062, 0.91, 120, 5.0),
+    makeCar(16, 'F1', 'f1', 0.56, '#ef4444', 12000, 15.5, 0.38, 0.070, 0.93, 85, 5.0)
 ];
+
+const SKILL_MAX = 10;
+
+const SKILLS = [
+    { id: 'speed', name: 'Velocidade', desc: '+3% velocidade máxima por nível', base: 150, perLevel: 0.03 },
+    { id: 'accel', name: 'Aceleração', desc: '+4% aceleração por nível', base: 150, perLevel: 0.04 },
+    { id: 'armor', name: 'Durabilidade', desc: '+6% de vida por nível', base: 200, perLevel: 0.06 },
+    { id: 'nitro', name: 'Capacidade de Nitro', desc: '+6% de nitro por nível', base: 200, perLevel: 0.06 },
+    { id: 'nitroCoin', name: 'Recarga de Nitro', desc: 'Moedas restauram +8% mais nitro por nível', base: 180, perLevel: 0.08 },
+    { id: 'handling', name: 'Controle', desc: '+2,5% de curva por nível', base: 150, perLevel: 0.025 },
+    { id: 'payout', name: 'Ganho de Dinheiro', desc: '+3% de dinheiro por partida, por nível', base: 300, perLevel: 0.03 }
+];
+
+if (!saveData.carUpgrades) {
+    saveData.carUpgrades = {};
+}
+
+function getSkillMult(carIndex, skillId) {
+    const levels = saveData.carUpgrades[carIndex] || {};
+    const skill = SKILLS.find((s) => s.id === skillId);
+    return 1 + (levels[skillId] || 0) * skill.perLevel;
+}
 
 class ParticleSystem {
     constructor() {
@@ -688,6 +706,14 @@ class Vehicle {
         this.width = 44 * PLAYER_SIZE_SCALE;
         this.height = 22 * PLAYER_SIZE_SCALE;
 
+        this.drawHeight = this.height;
+
+        if (carConfig.img) {
+            this.width = CAR_BASE_LENGTH * carConfig.size * Math.min(1, 0.55 / carConfig.ratio);
+            this.drawHeight = this.width * carConfig.ratio;
+            this.height = Math.max(this.drawHeight, 20);
+        }
+
         this.config = carConfig;
         this.topSpeed = carConfig.topSpeed;
         this.accel = carConfig.accel;
@@ -795,7 +821,7 @@ class Vehicle {
         
             game.camera.shake = Math.max(game.camera.shake, DRIFT_CAMERA_SHAKE);
         
-            if (Math.random() < 0.2) audio.playSkidSound();
+            
         }
 
         this.lastRearLeft = rl;
@@ -817,29 +843,37 @@ class Vehicle {
             ctx.fill();
         }
 
-        // Vehicle Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width, this.height);
+        if (!this.config.img) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.fillRect(-this.width / 2 + 4, -this.height / 2 + 4, this.width, this.height);
+        }
 
-        // Body Chassis
-        ctx.fillStyle = this.config.color || '#06b6d4';
-        ctx.beginPath();
-        ctx.roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 6);
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        if (this.config.img) {
+            if (this.config.landscape) {
+                ctx.drawImage(this.config.img, -this.width / 2, -this.drawHeight / 2, this.width, this.drawHeight);
+            } else {
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(this.config.img, -this.drawHeight / 2, -this.width / 2, this.drawHeight, this.width);
+                ctx.rotate(-Math.PI / 2);
+            }
+        } else {
+            ctx.fillStyle = this.config.color || '#06b6d4';
+            ctx.beginPath();
+            ctx.roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 6);
+            ctx.fill();
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-        // Roof/Windshield details
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.roundRect(-this.width * 0.15, -this.height * 0.35, this.width * 0.45, this.height * 0.7, 3);
-        ctx.fill();
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(-this.width * 0.15, -this.height * 0.35, this.width * 0.45, this.height * 0.7, 3);
+            ctx.fill();
 
-        // Headlight beams glow
-        ctx.fillStyle = 'rgba(254, 240, 138, 0.8)';
-        ctx.fillRect(this.width / 2 - 2, -this.height / 2 + 2, 3, 5);
-        ctx.fillRect(this.width / 2 - 2, this.height / 2 - 7, 3, 5);
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.8)';
+            ctx.fillRect(this.width / 2 - 2, -this.height / 2 + 2, 3, 5);
+            ctx.fillRect(this.width / 2 - 2, this.height / 2 - 7, 3, 5);
+        }
 
         ctx.restore();
 
@@ -886,10 +920,18 @@ class CopVehicle extends Vehicle {
             config.maxHealth = 140;
         }
 
+        const portrait = POLICE_SKIN.naturalHeight >= POLICE_SKIN.naturalWidth;
+        const sides = [POLICE_SKIN.naturalWidth, POLICE_SKIN.naturalHeight].sort((a, b) => a - b);
+        config.img = POLICE_SKIN;
+        config.ratio = (sides[0] / sides[1]) || 0.5;
+        config.landscape = !portrait;
+        config.size = 1;
+
         super(x, y, config);
 
-        this.width = 44 * COP_SIZE_SCALE;
-        this.height = 22 * COP_SIZE_SCALE;
+        this.width = COP_BASE_LENGTH * Math.min(1, 0.55 / config.ratio);
+        this.drawHeight = this.width * config.ratio;
+        this.height = Math.max(this.drawHeight, 20);
         this.copType = copType;
         this.sirenTimer = 0;
         this.hitCooldown = 0;
@@ -1033,22 +1075,40 @@ class CopVehicle extends Vehicle {
     draw(ctx) {
         super.draw(ctx);
 
-        // Flashy Siren Lights (Red & Blue)
+        const tick = Math.floor(this.sirenTimer * 10);
+        if (tick % 8 >= 4) {
+            return;
+        }
+
+        let light = COP_LIGHTS[1];
+        if (Math.floor(tick / 24) % 2 === 0) {
+            light = COP_LIGHTS[0];
+        }
+
+        const img = this.config.img;
+        const su = this.drawHeight / img.naturalWidth;
+        const sv = this.width / img.naturalHeight;
+        const px = -((light.y1 + light.y2) / 2 - img.naturalHeight / 2) * sv;
+        const py = ((light.x1 + light.x2) / 2 - img.naturalWidth / 2) * su;
+        const w = (light.y2 - light.y1) * sv;
+        const h = (light.x2 - light.x1) * su;
+        const glowRadius = this.width * 0.3;
+
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
+        ctx.globalCompositeOperation = 'lighter';
 
-        const flash = Math.sin(this.sirenTimer * 10) > 0;
-        ctx.fillStyle = flash ? '#ef4444' : '#3b82f6';
+        const glow = ctx.createRadialGradient(px, py, 0, px, py, glowRadius);
+        glow.addColorStop(0, light.glowStart);
+        glow.addColorStop(1, light.glowEnd);
+        ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(0, -this.height * 0.2, 4, 0, Math.PI * 2);
+        ctx.arc(px, py, glowRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = !flash ? '#ef4444' : '#3b82f6';
-        ctx.beginPath();
-        ctx.arc(0, this.height * 0.2, 4, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.fillStyle = light.color;
+        ctx.fillRect(px - w / 2, py - h / 2, w, h);
         ctx.restore();
     }
 }
@@ -1588,18 +1648,20 @@ class GameEngine {
     startNewGame() {
         audio.init();
     
-        const carConfig = CAR_CATALOG[saveData.selectedCar || 0];
-    
-        // Apply Upgrades
+        const carIndex = saveData.selectedCar || 0;
+        const carConfig = CAR_CATALOG[carIndex];
         const upgradedConfig = { ...carConfig };
-        upgradedConfig.topSpeed += (saveData.upgrades.engine || 0) * 0.8;
-        upgradedConfig.accel += (saveData.upgrades.engine || 0) * 0.03;
-        upgradedConfig.maxHealth += (saveData.upgrades.armor || 0) * 25;
+        upgradedConfig.topSpeed *= getSkillMult(carIndex, 'speed');
+        upgradedConfig.accel *= getSkillMult(carIndex, 'accel');
+        upgradedConfig.handling *= getSkillMult(carIndex, 'handling');
+        upgradedConfig.maxHealth = Math.round(upgradedConfig.maxHealth * getSkillMult(carIndex, 'armor'));
+        upgradedConfig.nitroMax *= getSkillMult(carIndex, 'nitro');
     
         this.player = new Vehicle(0, 0, upgradedConfig);
         this.player.nitroMax = upgradedConfig.nitroMax * getDifficulty().nitroMult;
         this.player.nitroEnergy = this.player.nitroMax;
         this.player.nitroPower = getDifficulty().nitroPower;
+        this.player.nitroCoinMult = getSkillMult(carIndex, 'nitroCoin');
     
         this.cops = [];
         this.coins = [];
@@ -1718,6 +1780,11 @@ class GameEngine {
     }
     
     update() {
+
+        audio.setActive(this.state === 'PLAYING');
+
+        musicPlayer.setActive(this.state === 'PLAYING');
+
         if (this.state === 'EXPLODING') {
             this.updateDeathAnimation();
             return;
@@ -1739,8 +1806,11 @@ class GameEngine {
     
         // Update Player
         this.player.updatePhysics(this.inputs);
-        audio.updateEnginePitch(Math.hypot(this.player.vx, this.player.vy) / this.player.topSpeed);
-    
+        let nearestCop = 9999;
+        for (const cop of this.cops) {
+            nearestCop = Math.min(nearestCop, Math.hypot(cop.x - this.player.x, cop.y - this.player.y));
+        }
+        audio.updateSiren(nearestCop); audio.updateSiren(nearestCop);       
         this.maintainProps();
         this.maintainCoins();
         this.maintainHealthPickups();
@@ -1797,49 +1867,34 @@ class GameEngine {
             }
     
             // Cop vs Player Collision
-            const pdx = cop.x - this.player.x;
-            const pdy = cop.y - this.player.y;
-            const distToPlayer = Math.hypot(pdx, pdy);
+            const distToPlayer = Math.hypot(cop.x - this.player.x, cop.y - this.player.y);
             if (distToPlayer < 36) {
-                const pnx = pdx / (distToPlayer || 1);
-                const pny = pdy / (distToPlayer || 1);
-
-                // Batida de frente: a frente do jogador aponta pro policial e os dois estão se aproximando.
-                // Calculado ANTES do knockback, que muda a posição e a velocidade do policial.
-                const playerAim = Math.cos(this.player.angle) * pnx + Math.sin(this.player.angle) * pny;
-                const closing = (this.player.vx - cop.vx) * pnx + (this.player.vy - cop.vy) * pny;
-                const headOn = playerAim > HEADON_AIM_MIN && closing > HEADON_MIN_CLOSING_SPEED;
-
-                this.camera.shake = headOn ? 24 : 18;
+                this.camera.shake = 18;
                 this.particles.spawnSpark((cop.x + this.player.x) / 2, (cop.y + this.player.y) / 2);
-
-                if (headOn) {
-                    // O policial explode (qualquer tipo) e o jogador não leva dano
-                    cop.health = 0;
+    
+                // Batida: joga o policial pra trás e faz ele recuar antes de atacar de novo
+                if (cop.retreatTimer <= 0) {
+                    const kdx = cop.x - this.player.x;
+                    const kdy = cop.y - this.player.y;
+                    const kd = Math.hypot(kdx, kdy) || 1;
+                    cop.x = this.player.x + (kdx / kd) * 40;
+                    cop.y = this.player.y + (kdy / kd) * 40;
+                    cop.vx = (kdx / kd) * COP_KNOCKBACK_SPEED;
+                    cop.vy = (kdy / kd) * COP_KNOCKBACK_SPEED;
+                    cop.retreatTimer = COP_RETREAT_FRAMES;
+                }
+    
+                // Dano no policial: com nitro ele é destruído na batida
+                if (this.player.isNitro) {
+                    cop.health -= 60 * this.player.nitroPower;
                 } else {
-                    // Batida: joga o policial pra trás e faz ele recuar antes de atacar de novo
-                    if (cop.retreatTimer <= 0) {
-                        const kdx = cop.x - this.player.x;
-                        const kdy = cop.y - this.player.y;
-                        const kd = Math.hypot(kdx, kdy) || 1;
-                        cop.x = this.player.x + (kdx / kd) * 40;
-                        cop.y = this.player.y + (kdy / kd) * 40;
-                        cop.vx = (kdx / kd) * COP_KNOCKBACK_SPEED;
-                        cop.vy = (kdy / kd) * COP_KNOCKBACK_SPEED;
-                        cop.retreatTimer = COP_RETREAT_FRAMES;
-                    }
-
-                    // Dano no policial (batida de lado ou de costas)
-                    if (this.player.isNitro) {
-                        cop.health -= 60 * this.player.nitroPower;
-                    } else {
-                        cop.health -= 0.4;
-                    }
+                    cop.health -= 0.4;
                 }
 
-                // Dano no jogador: não acontece se o policial morreu na batida
+                // Dano no jogador: SEMPRE COP_HIT_DAMAGE (25) por batida, com ou sem nitro
                 if (cop.hitCooldown <= 0 && cop.health > 0) {
                     this.player.health -= COP_HIT_DAMAGE;
+                    audio.playHit();
                     this.loseDriftChain();
                     cop.hitCooldown = COP_HIT_COOLDOWN;
 
@@ -1905,7 +1960,7 @@ class GameEngine {
                 this.cops.splice(i, 1);
                 this.copsWrecked++;
                 this.score += 500;
-                this.recoverDriftChain();
+                this.addRecoveryPoints(500);
                 this.coinsEarnedSession += 100;
     
                 // Spawn reward coins
@@ -1930,7 +1985,7 @@ class GameEngine {
                     this.addRecoveryPoints(coinPoints);
                 }
 
-                this.player.nitroEnergy = Math.min(this.player.nitroMax, this.player.nitroEnergy + COIN_NITRO_RESTORE);
+                this.player.nitroEnergy = Math.min(this.player.nitroMax, this.player.nitroEnergy + COIN_NITRO_RESTORE * this.player.nitroCoinMult);
                 audio.playCoin();
                 this.coins.splice(i, 1);
             }
@@ -1965,34 +2020,6 @@ class GameEngine {
         }
     
         this.updateHUD();
-    }
-
-    togglePause() {
-        if (this.state === 'PLAYING') {
-            this.state = 'PAUSED';
-            for (const k in this.inputs) this.inputs[k] = false; // solta todas as teclas
-            document.getElementById('pauseModal').classList.remove('hidden');
-        } else if (this.state === 'PAUSED') {
-            this.state = 'PLAYING';
-            document.getElementById('pauseModal').classList.add('hidden');
-        }
-    }
-
-    // Sai da partida pelo pause: salva dinheiro e recorde, como num game over, e volta pro menu
-    quitToMenu() {
-        if (this.state !== 'PAUSED') {
-            return
-        };
-
-        document.getElementById('pauseModal').classList.add('hidden');
-        this.triggerGameOver();
-        this.state = 'MENU';
-
-        clearTimeout(this.driftHideTimer);
-        document.getElementById('driftComboContainer').style.opacity = '0';
-        document.getElementById('gameOverModal').classList.add('hidden');
-        document.getElementById('mainMenu').classList.remove('hidden');
-        updateMenuData();
     }
 
     showDriftChain(barRatio) {
@@ -2106,7 +2133,7 @@ class GameEngine {
         }
 
         document.getElementById('hudScore').innerText = this.score;
-        document.getElementById('hudCoins').innerText = `$${this.getPayout()}`;
+        document.getElementById('hudCoins').innerText = `$${this.coinsEarnedSession}`;
 
         const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
         const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
@@ -2118,27 +2145,58 @@ class GameEngine {
     }
 
     getPayout() {
-        return Math.round(this.coinsEarnedSession * (getDifficulty().payoutMult || 1));
+        return Math.round(this.coinsEarnedSession * getSkillMult(saveData.selectedCar || 0, 'payout'));
+    }
+
+    saveProgress() {
+        saveData.coins += this.getPayout();
+        if (this.score > saveData.highScore) {
+            saveData.highScore = this.score;
+        }
+        saveGame();
+    }
+
+    togglePause() {
+        if (this.state === 'PLAYING') {
+            this.state = 'PAUSED';
+            this.inputs = { up: false, down: false, left: false, right: false, handbrake: false, nitro: false };
+            document.getElementById('pauseModal').classList.remove('hidden');
+            return;
+        }
+
+        if (this.state === 'PAUSED') {
+            this.state = 'PLAYING';
+            document.getElementById('pauseModal').classList.add('hidden');
+            lastFrameTime = performance.now();
+            tickAccumulator = 0;
+        }
+    }
+
+    quitToMenu() {
+        if (this.driftComboScore > 0) {
+            this.bankDriftChain();
+        }
+
+        this.saveProgress();
+        this.state = 'MENU';
+        document.getElementById('pauseModal').classList.add('hidden');
+        document.getElementById('hudOverlay').classList.add('hidden');
+        document.getElementById('driftComboContainer').style.opacity = '0';
+        document.getElementById('mainMenu').classList.remove('hidden');
+        updateMenuData();
     }
 
     triggerGameOver() {
         this.state = 'GAMEOVER';
 
-        const payout = this.getPayout();
-        saveData.coins += payout;
-
-        if (this.score > saveData.highScore) {
-            saveData.highScore = this.score;
-        }
-
-        saveGame();
+        this.saveProgress();
 
         document.getElementById('goScore').innerText = this.score;
         const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
         const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
         document.getElementById('goTime').innerText = `${mins}:${secs}`;
         document.getElementById('goCops').innerText = this.copsWrecked;
-        document.getElementById('goCash').innerText = `+$${payout}`;
+        document.getElementById('goCash').innerText = `+$${this.getPayout()}`;
 
         document.getElementById('hudOverlay').classList.add('hidden');
         document.getElementById('gameOverModal').classList.remove('hidden');
@@ -2243,6 +2301,12 @@ window.addEventListener('keyup', (e) => {
     if (e.code === 'ShiftLeft' || e.code === 'KeyE') game.inputs.nitro = false;
 });
 
+window.addEventListener('blur', () => {
+    if (game.state === 'PLAYING') {
+        game.togglePause();
+    }
+});
+
 // Mobile Touch Button Listeners
 function bindTouchBtn(id, keyProp) {
     const btn = document.getElementById(id);
@@ -2268,71 +2332,172 @@ function updateMenuData() {
     document.getElementById('garageCashDisplay').innerText = `$${saveData.coins}`;
 }
 
-// Render Garage Vehicles
+let tempSelectedCar = saveData.selectedCar || 0;
+
+function getSkillCost(skill, level) {
+    return skill.base * (level + 1);
+}
+
 function renderGarageList() {
     const container = document.getElementById('carListContainer');
     container.innerHTML = '';
 
     CAR_CATALOG.forEach((car, index) => {
-        const isUnlocked = saveData.unlockedCars[index];
-        const isSelected = saveData.selectedCar === index;
+        if (!saveData.unlockedCars[index]) {
+            return;
+        }
+
+        let cardClass = 'bg-slate-900/60 border-slate-800 hover:border-slate-700';
+        if (tempSelectedCar === index) {
+            cardClass = 'bg-cyan-950/40 border-cyan-400';
+        }
+
+        let badge = '';
+        if (saveData.selectedCar === index) {
+            badge = '<span class="px-3 py-1 bg-cyan-500 text-slate-950 font-black font-orbitron text-xs rounded-full">EQUIPADO</span>';
+        }
 
         const card = document.createElement('div');
-        card.className = `p-4 rounded-2xl border cursor-pointer transition flex justify-between items-center ${isSelected ? 'bg-cyan-950/40 border-cyan-400 neon-border-cyan' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`;
+        card.className = `p-3 rounded-2xl border cursor-pointer transition flex justify-between items-center ${cardClass}`;
         card.onclick = () => selectGarageCar(index);
-
         card.innerHTML = `
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black font-orbitron text-lg" style="background: ${car.color}; color: #0f172a;">
-                    🏎️
-                </div>
-                <div>
-                    <h4 class="font-bold font-orbitron text-white text-sm md:text-base">${car.name}</h4>
-                    <p class="text-xs text-slate-400">${isUnlocked ? 'UNLOCKED' : `$${car.price}`}</p>
-                </div>
+            <div class="flex items-center gap-3">
+                <img src="${car.img.src}" class="h-14 w-14 object-contain">
+                <h4 class="font-bold font-orbitron text-white text-sm">${car.name}</h4>
             </div>
-            <div>
-                ${isSelected ? '<span class="px-3 py-1 bg-cyan-500 text-slate-950 font-black font-orbitron text-xs rounded-full">EQUIPPED</span>' : (isUnlocked ? '<span class="text-xs font-bold text-slate-400">SELECT</span>' : '<span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold font-orbitron text-xs rounded-full">BUY</span>')}
-            </div>
+            ${badge}
         `;
         container.appendChild(card);
     });
 }
 
-let tempSelectedCar = saveData.selectedCar || 0;
+function buySkill(carIndex, skill) {
+    const levels = saveData.carUpgrades[carIndex] || {};
+    const level = levels[skill.id] || 0;
+    const cost = getSkillCost(skill, level);
+
+    if (level >= SKILL_MAX || saveData.coins < cost) {
+        return;
+    }
+
+    saveData.coins -= cost;
+    levels[skill.id] = level + 1;
+    saveData.carUpgrades[carIndex] = levels;
+    saveGame();
+    updateMenuData();
+    selectGarageCar(carIndex);
+}
 
 function selectGarageCar(index) {
     tempSelectedCar = index;
     const car = CAR_CATALOG[index];
+    const levels = saveData.carUpgrades[index] || {};
 
     document.getElementById('selectedCarName').innerText = car.name;
-    document.getElementById('selectedCarDesc').innerText = car.desc;
+    document.getElementById('selectedCarImg').src = car.img.src;
 
-    // Stat Bars
-    document.getElementById('statSpeedVal').innerText = `${Math.floor(car.topSpeed * 12)} KM/H`;
-    document.getElementById('statSpeedBar').style.width = `${(car.topSpeed / 16) * 100}%`;
+    const box = document.getElementById('skillsContainer');
+    box.innerHTML = '';
 
-    document.getElementById('statDriftVal').innerText = car.driftGrip < 0.90 ? 'HIGH' : 'MEDIUM';
-    document.getElementById('statDriftBar').style.width = `${(1.0 - car.driftGrip) * 500}%`;
+    SKILLS.forEach((skill) => {
+        const level = levels[skill.id] || 0;
+        const isMax = level >= SKILL_MAX;
+        const cost = getSkillCost(skill, level);
+        const bonus = Math.round(level * skill.perLevel * 1000) / 10;
 
-    document.getElementById('statArmorVal').innerText = `${car.maxHealth} HP`;
-    document.getElementById('statArmorBar').style.width = `${(car.maxHealth / 200) * 100}%`;
+        let btnText = `$${cost}`;
+        let btnClass = 'bg-slate-800 text-slate-500';
+        if (isMax) {
+            btnText = 'MAX';
+        } else if (saveData.coins >= cost) {
+            btnClass = 'bg-emerald-500 text-slate-950';
+        }
 
-    document.getElementById('statNitroVal').innerText = `${car.nitroMax.toFixed(1)} SEC`;
-    document.getElementById('statNitroBar').style.width = `${(car.nitroMax / 5.0) * 100}%`;
+        const row = document.createElement('div');
+        row.className = 'p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center gap-3';
+        row.innerHTML = `
+            <div class="flex-1">
+                <div class="flex justify-between text-xs font-bold font-orbitron mb-1">
+                    <span class="text-slate-200">${skill.name}</span>
+                    <span class="text-cyan-400">${level}/${SKILL_MAX}</span>
+                </div>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-1">
+                    <div class="bg-cyan-400 h-full" style="width: ${(level / SKILL_MAX) * 100}%"></div>
+                </div>
+                <p class="text-[11px] text-slate-400">${skill.desc} • atual: +${bonus}%</p>
+            </div>
+        `;
 
-    const isUnlocked = saveData.unlockedCars[index];
-    const btn = document.getElementById('btnSelectOrBuyCar');
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-2 rounded-lg font-black font-orbitron text-xs ${btnClass}`;
+        btn.innerText = btnText;
+        btn.disabled = isMax;
+        btn.onclick = () => buySkill(index, skill);
+        row.appendChild(btn);
+        box.appendChild(row);
+    });
 
-    if (isUnlocked) {
-        btn.innerText = 'SELECT VEHICLE';
-        btn.className = 'w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
-    } else {
-        btn.innerText = `BUY VEHICLE ($${car.price})`;
-        btn.className = 'w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black font-orbitron text-lg rounded-xl transition';
+    const equipBtn = document.getElementById('btnSelectCar');
+    equipBtn.innerText = 'EQUIPAR';
+    equipBtn.disabled = false;
+    if (saveData.selectedCar === index) {
+        equipBtn.innerText = 'EQUIPADO';
+        equipBtn.disabled = true;
     }
 
     renderGarageList();
+}
+
+function buyCar(index) {
+    const car = CAR_CATALOG[index];
+
+    if (saveData.unlockedCars[index] || saveData.coins < car.price) {
+        return;
+    }
+
+    saveData.coins -= car.price;
+    saveData.unlockedCars[index] = true;
+    saveGame();
+    updateMenuData();
+    renderShop();
+}
+
+function renderShop() {
+    const grid = document.getElementById('shopGrid');
+    grid.innerHTML = '';
+    document.getElementById('shopCashDisplay').innerText = `$${saveData.coins}`;
+
+    CAR_CATALOG.forEach((car, index) => {
+        const owned = saveData.unlockedCars[index];
+
+        let btnText = `$${car.price}`;
+        let btnClass = 'bg-slate-800 text-slate-500';
+        if (owned) {
+            btnText = 'COMPRADO';
+        } else if (saveData.coins >= car.price) {
+            btnClass = 'bg-emerald-500 text-slate-950';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'p-3 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col items-center gap-2';
+        card.innerHTML = `
+            <img src="${car.img.src}" class="h-28 object-contain">
+            <h4 class="font-bold font-orbitron text-white text-sm">${car.name}</h4>
+            <div class="w-full text-[11px] text-slate-400 flex justify-between">
+                <span>VEL ${Math.floor(car.topSpeed * 12)}</span>
+                <span>HP ${car.maxHealth}</span>
+                <span>NITRO ${car.nitroMax.toFixed(1)}s</span>
+            </div>
+        `;
+
+        const btn = document.createElement('button');
+        btn.className = `w-full py-2 rounded-lg font-black font-orbitron text-sm ${btnClass}`;
+        btn.innerText = btnText;
+        btn.disabled = owned;
+        btn.onclick = () => buyCar(index);
+        card.appendChild(btn);
+        grid.appendChild(card);
+    });
 }
 
 // Modal Button Handlers
@@ -2349,54 +2514,35 @@ document.getElementById('btnPause').onclick = () => game.togglePause();
 document.getElementById('btnResume').onclick = () => game.togglePause();
 document.getElementById('btnPauseMenu').onclick = () => game.quitToMenu();
 
-document.getElementById('btnOpenGarage').onclick = () => {
-    updateMenuData();
-    selectGarageCar(saveData.selectedCar || 0);
-    document.getElementById('garageModal').classList.remove('hidden');
-};
-document.getElementById('btnCloseGarage').onclick = () => document.getElementById('garageModal').classList.add('hidden');
-
 document.getElementById('btnHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.remove('hidden');
 document.getElementById('btnCloseHowToPlay').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
 document.getElementById('btnGotIt').onclick = () => document.getElementById('howToPlayModal').classList.add('hidden');
 
-document.getElementById('btnSelectOrBuyCar').onclick = () => {
-    const car = CAR_CATALOG[tempSelectedCar];
-    const isUnlocked = saveData.unlockedCars[tempSelectedCar];
-
-    if (isUnlocked) {
-        saveData.selectedCar = tempSelectedCar;
-        saveGame();
-        selectGarageCar(tempSelectedCar);
-    } else {
-        if (saveData.coins >= car.price) {
-            saveData.coins -= car.price;
-            saveData.unlockedCars[tempSelectedCar] = true;
-            saveData.selectedCar = tempSelectedCar;
-            saveGame();
-            updateMenuData();
-            selectGarageCar(tempSelectedCar);
-        }
-    }
+document.getElementById('btnOpenGarage').onclick = () => {
+    updateMenuData();
+    tempSelectedCar = saveData.selectedCar || 0;
+    selectGarageCar(tempSelectedCar);
+    document.getElementById('garageModal').classList.remove('hidden');
 };
 
-// Upgrade Buttons
-document.getElementById('btnUpgradeEngine').onclick = () => {
-    if (saveData.coins >= 500) {
-        saveData.coins -= 500;
-        saveData.upgrades.engine = (saveData.upgrades.engine || 0) + 1;
-        saveGame();
-        updateMenuData();
-    }
+document.getElementById('btnCloseGarage').onclick = () => {
+    document.getElementById('garageModal').classList.add('hidden');
 };
 
-document.getElementById('btnUpgradeArmor').onclick = () => {
-    if (saveData.coins >= 500) {
-        saveData.coins -= 500;
-        saveData.upgrades.armor = (saveData.upgrades.armor || 0) + 1;
-        saveGame();
-        updateMenuData();
-    }
+document.getElementById('btnOpenShop').onclick = () => {
+    renderShop();
+    document.getElementById('shopModal').classList.remove('hidden');
+};
+
+document.getElementById('btnCloseShop').onclick = () => {
+    document.getElementById('shopModal').classList.add('hidden');
+    updateMenuData();
+};
+
+document.getElementById('btnSelectCar').onclick = () => {
+    saveData.selectedCar = tempSelectedCar;
+    saveGame();
+    selectGarageCar(tempSelectedCar);
 };
 
 function renderDifficultySelector() {
@@ -2439,19 +2585,12 @@ renderDifficultySelector();
 // Main Animation Loop
 updateMenuData();
 
-// Avança o jogo com passo fixo, usando o tempo real (por isso pode ser chamado por mais de um relógio)
-function runFrame(now) {
+function gameLoop(now) {
     let delta = now - lastFrameTime;
-    if (delta < 0) {
-        delta = 0
-    };
-
     lastFrameTime = now;
 
-    // Proteção contra pulos enormes de tempo
-    if (delta > 100) {
-        delta = 100
-    };
+    // Se a aba ficou em segundo plano, não tenta "compensar" o tempo perdido
+    if (delta > 100) delta = 100;
 
     tickAccumulator += delta;
 
@@ -2462,36 +2601,12 @@ function runFrame(now) {
         ticked = true;
     }
 
-    // Só desenha quando houve atualização (partículas e itens animam dentro do render()).
-    // Pausado ou com a aba escondida, não desenha: a tela fica congelada / economiza processamento.
-    if (ticked && game.state !== 'PAUSED' && !document.hidden) {
-        game.render()
-    };
-}
+    // Só desenha quando houve atualização, porque as partículas e as
+    // animações dos itens avançam dentro do render()
+    if (ticked) game.render();
 
-function gameLoop() {
-    runFrame(performance.now());
     requestAnimationFrame(gameLoop);
 }
+
 requestAnimationFrame(gameLoop);
-
-// Relógio em Web Worker: o navegador não pausa ele quando a aba fica em segundo plano.
-// Só assume o jogo enquanto a aba está escondida; com ela visível, quem manda é o requestAnimationFrame.
-try {
-    const workerCode = 'setInterval(() => postMessage(0), 1000 / 60);';
-    const tickWorker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
-    tickWorker.onmessage = () => {
-        if (document.hidden) runFrame(performance.now());
-    };
-} catch (e) {
-    // Sem Worker, o jogo volta a parar quando a aba fica escondida
-}
-
-// Ao perder o foco, solta as teclas (senão o carro fica acelerando sozinho, já que o keyup se perde)
-window.addEventListener('blur', () => {
-    for (const k in game.inputs) {
-        game.inputs[k] = false;
-    }
-});
-
 //67
