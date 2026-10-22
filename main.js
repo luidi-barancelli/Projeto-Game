@@ -35,6 +35,7 @@ const DIFFICULTY_LEVELS = {
         initialCops: 2, baseSpawnInterval: 5, minSpawnInterval: 4, maxCops: 6,
         coinMult: 1.4, healthKits: 3, nitroMult: 1, superCoins: true, nitroPower: 1,
         copAI: { flankChance: 0.25, ambushChance: 0.10, leadFrames: 25, separation: 1.6 },
+        payoutMult: 1.0,
         info: 'Se você não aguenta a pressão!'
     },
     MEDIUM: {
@@ -43,6 +44,7 @@ const DIFFICULTY_LEVELS = {
         initialCops: 4, baseSpawnInterval: 4, minSpawnInterval: 3, maxCops: 8,
         coinMult: 1, healthKits: 2, nitroMult: 1, superCoins: true, nitroPower: 1,
         copAI: { flankChance: 0.30, ambushChance: 0.20, leadFrames: 40, separation: 1.5 },
+        payoutMult: 1.5,
         info: 'Você aguenta a pressão, mas ainda tem medo!'
     },
     HARD: {
@@ -51,6 +53,7 @@ const DIFFICULTY_LEVELS = {
         initialCops: 6, baseSpawnInterval: 3, minSpawnInterval: 2, maxCops: 9,
         coinMult: 0.7, healthKits: 0, nitroMult: 0.5, superCoins: true, nitroPower: 0.5,
         copAI: { flankChance: 0.30, ambushChance: 0.30, leadFrames: 55, separation: 1.4 },
+        payoutMult: 2.5,
         info: 'Você é impressionante. Parabéns!',
         warning: 'No modo DIFÍCIL não nascem kits de vida!'
     },
@@ -62,6 +65,7 @@ const DIFFICULTY_LEVELS = {
         comboRecovery: false, // indica se recupera ou não o combo perdido, nesse caso
         // na dificuldade EXTREME, nunca recupera
         copAI: { flankChance: 0.30, ambushChance: 0.45, leadFrames: 75, separation: 1.3 },
+        payoutMult: 4.0,
         info: 'Você tem meu respeito. Parabéns Corajoso!',
         warning: 'No modo EXTREMO não nascem kits de vida! Boa sorte.'
     }
@@ -1883,7 +1887,7 @@ class GameEngine {
                 this.cops.splice(i, 1);
                 this.copsWrecked++;
                 this.score += 500;
-                this.addRecoveryPoints(500);
+                this.recoverDriftChain();
                 this.coinsEarnedSession += 100;
     
                 // Spawn reward coins
@@ -2056,7 +2060,7 @@ class GameEngine {
         }
 
         document.getElementById('hudScore').innerText = this.score;
-        document.getElementById('hudCoins').innerText = `$${this.coinsEarnedSession}`;
+        document.getElementById('hudCoins').innerText = `$${this.getPayout()}`;
 
         const mins = Math.floor(this.survivalTimer / 60).toString().padStart(2, '0');
         const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
@@ -2067,13 +2071,20 @@ class GameEngine {
         document.getElementById('hudSpeed').innerText = speed;
     }
 
+    getPayout() {
+        return Math.round(this.coinsEarnedSession * (getDifficulty().payoutMult || 1));
+    }
+
     triggerGameOver() {
         this.state = 'GAMEOVER';
 
-        saveData.coins += this.coinsEarnedSession;
+        const payout = this.getPayout();
+        saveData.coins += payout;
+
         if (this.score > saveData.highScore) {
             saveData.highScore = this.score;
         }
+
         saveGame();
 
         document.getElementById('goScore').innerText = this.score;
@@ -2081,7 +2092,7 @@ class GameEngine {
         const secs = Math.floor(this.survivalTimer % 60).toString().padStart(2, '0');
         document.getElementById('goTime').innerText = `${mins}:${secs}`;
         document.getElementById('goCops').innerText = this.copsWrecked;
-        document.getElementById('goCash').innerText = `+$${this.coinsEarnedSession}`;
+        document.getElementById('goCash').innerText = `+$${payout}`;
 
         document.getElementById('hudOverlay').classList.add('hidden');
         document.getElementById('gameOverModal').classList.remove('hidden');
